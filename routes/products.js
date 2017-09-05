@@ -4,20 +4,22 @@
 import express from 'express';
 import { pool } from './DBconfig';
 
-var router = express.Router();
+const router = express.Router();
 
 router.get("/", (req, res, next) => {
   pool.getConnection((err, connection) => {
-    const queryq = "SELECT * " +
-                  "  FROM product";
+    const query = "SELECT * FROM product";
 
-    console.log(connection);
+    // console.log(connection);
 
-    connection.query(queryq, (error, results, fields) => {
+    connection.query(query, (error, results) => {
+
       // do something process
       console.log(results);
-      console.log(fields);
-      
+
+      res.json({results})
+
+
       connection.release();
 
       if(error) throw error
