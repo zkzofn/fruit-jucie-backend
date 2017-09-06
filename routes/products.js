@@ -12,12 +12,12 @@ router.get("/", (req, res, next) => {
 
     // console.log(connection);
 
-    connection.query(query, (error, results) => {
+    connection.query(query, (error, products) => {
 
       // do something process
-      console.log(results);
+      console.log(products);
 
-      res.json({results})
+      res.json({products})
 
 
       connection.release();
