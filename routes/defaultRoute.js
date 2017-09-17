@@ -9,9 +9,10 @@ router.get("/", (req, res, next) => {
     
     connection.query(query, (error, results) => {
       if(error) throw error
-      
+
       // do something process
-      
+      res.json({results});
+
       connection.release();
     })
   })
