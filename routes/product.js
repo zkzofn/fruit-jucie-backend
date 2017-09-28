@@ -58,19 +58,6 @@ router.get("/", (req, res, next) => {
         })
     }).then((product) => {
       // 이거 페이지 기능 넣어서 쿼리 수정해야해
-      const query =
-        `SELECT *
-           FROM inquiry
-          WHERE product_id = ${req.query.productId}`;
-
-      return getQuery(query)
-        .then(results => {
-          product["inquiry"] = results;
-
-          return product;
-        })
-    }).then((product) => {
-      // 이거 페이지 기능 넣어서 쿼리 수정해야해
       const query = 
         `SELECT *
            FROM post_script
