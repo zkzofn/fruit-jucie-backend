@@ -29,6 +29,8 @@ router.get("/", (req, res, next) => {
           resolve(user);
         });
     }).then((user) => {
+      // 사용자정보에서 민감정보는 뺴야한다.
+
       res.json({user});
       connection.release();
     })

@@ -1,5 +1,6 @@
 import express from 'express';
 import { pool } from './DBconfig';
+import { queryConductor } from './queryConductor';
 
 const router = express.Router();
 
@@ -7,26 +8,13 @@ router.get("/", (req, res, next) => {
   pool.getConnection((err, connection) => {
     if (err) throw err;
 
-    const getQuery = (query) => {
-      return new Promise((resolve, reject) => {
-        connection.query(query, (error, results) => {
-          if (error) reject(error);
-
-          resolve(results);
-        })
-      })
-    };
-
-
-
-
     new Promise((resolve, reject) => {
       const query =
         `SELECT * 
-             FROM product 
-            WHERE id = ${req.query.productId}`;
+           FROM product 
+          WHERE id = ${req.query.productId}`;
 
-      getQuery(query)
+      queryConductor(connection, query)
         .then(results => {
           const product = results[0];
 
@@ -38,7 +26,7 @@ router.get("/", (req, res, next) => {
            FROM product_option
           WHERE product_id = ${req.query.productId}`;
 
-      return getQuery(query)
+      return queryConductor(connection, query)
         .then(results => {
           product["options"] = results;
 
@@ -50,7 +38,7 @@ router.get("/", (req, res, next) => {
            FROM product_detail
           WHERE product_id = ${req.query.productId}`;
 
-      return getQuery(query)
+      return queryConductor(connection, query)
         .then(results => {
           product["details"] = results;
 
@@ -63,7 +51,7 @@ router.get("/", (req, res, next) => {
            FROM post_script
           WHERE product_id = ${req.query.productId}`;
 
-      getQuery(query)
+      queryConductor(connection, query)
         .then(results => {
           product["post_script"] = results;
 
