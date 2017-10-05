@@ -18,88 +18,206 @@ router.get("/", (req, res) => {
 
       queryConductor(connection, query)
         .then(cartProducts => {
-          resolve(cartProducts);
+          resolve({cartProducts});
         })
-    }).then((cartProducts) => {
-      // const cart = cartProducts.map(cartProduct => {
-      //   const query =
-      //     `SELECT *
-      //      FROM product
-      //     WHERE id = ${cartProduct.product_id}`;
-      //
-      //   connection.query(query, (error, results) => {
-      //     if (error) throw error;
-      //
-      //     cartProduct["product"] = results[0];
-      //
-      //     return cartProduct;
-      //   });
-      // });
+    }).then(({cartProducts}) => {
+      const query =
+        `SELECT id, product_id, product_option_id
+           FROM cart_detail
+          WHERE user_id = ${userId}
+            AND status = 0
+          GROUP BY product_id`;
 
-      cartProducts.forEach((cartProduct, index, arr) => {
-        const query =
-            `SELECT *
-               FROM product
-              WHERE id = ${cartProduct.product_id}`;
+      return queryConductor(connection, query)
+        .then(distinctCartProducts => {
+          return ({cartProducts, distinctCartProducts})
+        })
+    }).then(({cartProducts, distinctCartProducts}) => {
+      const query =
+        `SELECT B.* 
+           FROM cart_detail A INNER JOIN product B
+             ON A.product_id = B.id
+          WHERE A.user_id = ${userId}
+            AND status = 0
+          GROUP BY B.id`;
 
-          connection.query(query, (error, results) => {
-            if (error) throw error;
+      return queryConductor(connection, query)
+        .then(products => {
+          return ({cartProducts, distinctCartProducts, products})
+        });
+    }).then(({cartProducts, distinctCartProducts, products}) => {
+      const query =
+        `SELECT B.*
+           FROM cart_detail A INNER JOIN product_option B
+             ON A.product_option_id = B.id
+          WHERE A.user_id = ${userId}
+            AND status = 0
+          GROUP BY B.id`;
 
-            cartProduct["product"] = results[0];
+      return queryConductor(connection, query)
+        .then(productOptions => {
+          return ({cartProducts, distinctCartProducts, products, productOptions})
+        })
+    }).then(({cartProducts, distinctCartProducts, products, productOptions}) => {
+      return new Promise(resolve => {
 
-            if (index == arr.length - 1) {
-              return Promise.resolve(arr);
-            }
+        const cart = distinctCartProducts.map((distinctCartProduct) => {
+          distinctCartProduct["product"] = products.filter(product => {
+            return product.id === distinctCartProduct.product_id;
+          })[0];
+
+          distinctCartProduct["product"]["count"] = cartProducts.filter(cartProduct => {
+            return distinctCartProduct.product_id === cartProduct.product_id;
+          })[0].count;
+
+          distinctCartProduct["options"] = cartProducts.filter(cartProduct => {
+            return distinctCartProduct.product_id === cartProduct.product_id && cartProduct.product_option_id !== null;
+          }).map(cartProduct => {
+            const cartId = cartProduct.id;
+            const count = cartProduct.count;
+
+            cartProduct = productOptions.filter(productOption => {
+              return productOption.id === cartProduct.product_option_id;
+            })[0];
+
+            cartProduct["cartId"] = cartId;
+            cartProduct["count"] = count;
+
+            return cartProduct;
           });
+
+          return distinctCartProduct;
+        });
+
+        resolve(cart);
       })
     }).then(cart => {
-      console.log(cart);
       res.json({cart});
       connection.release();
     })
   })
 }).post("/", (req, res) => {
   pool.getConnection((err, connection) => {
-    const { userId } = req.body;
-    const { product } = req.body;
-    const { selectedOptions } = req.body;
+    if (err) throw err;
 
-    if (selectedOptions.length === 0) {
-      const query =
-        `INSERT INTO cart_detail
-                (user_id, product_id, count, status, date)
-         VALUES (${userId}, ${product.id}, ${product.count}, 0, now())`;
+    const { userId, product, selectedOptions } = req.body;
 
-      queryConductor(connection, query)
-        .then(results => {
+    let productOptionCondition = "AND product_option_id in (";
 
-          res.json({results});
-          connection.release();
-        })
-    } else {
-      new Promise((resolve, reject) => {
-        let resResults = [];
+    selectedOptions.forEach((selectedOption, index) => {
+      productOptionCondition = `${productOptionCondition}${selectedOption.id}`;
 
-        for (let i = 0; i < selectedOptions.length; i++) {
+      if (index === selectedOptions.length - 1) {
+        productOptionCondition = `${productOptionCondition})`;
+      } else {
+        productOptionCondition = `${productOptionCondition},`;
+      }
+    });
+
+    const query =
+      `SELECT * 
+         FROM cart_detail
+        WHERE user_id = ${userId}
+          AND product_id = ${product.id}
+          ${selectedOptions.length > 0 ? productOptionCondition : ""}
+          AND status = 0`;
+
+    queryConductor(connection, query)
+      .then(results => {
+        if (selectedOptions.length === 0 && results.length === 0) {
           const query =
             `INSERT INTO cart_detail
-                    (user_id, product_id, product_option_id, count, status, date)
-             VALUES (${userId}, ${product.id}, ${selectedOptions[i].id}, ${selectedOptions[i].count}, 1, now())`;
+                    (user_id, product_id, count, status, date)
+             VALUES (${userId}, ${product.id}, ${product.count}, 0, now())`;
+
+            queryConductor(connection, query)
+              .then(insertResults => {
+
+                // 이 부분은 아마 insertResults 값 없을거야 확인해보고 수정해
+                res.json({insertResults});
+                connection.release();
+              })
+        } else if (selectedOptions.length === 0 && results.length > 0) {
+          const query =
+            `UPDATE cart_detail
+                SET count = count + ${product.count}
+              WHERE id = ${results[0].id}`;
+
           queryConductor(connection, query)
-            .then(results => {
-              resResults = [...resResults, results]
+            .then(updateResults => {
+              // 이 부분은 아마 insertResults 값 없을거야 확인해보고 수정해
+              res.json({updateResults});
+              connection.release();
             })
-            // .catch(error => {
-            //   res.json({error});
-            //   connection.release();
-            // })
+        } else if (selectedOptions.length > 0) {
+          new Promise(resolve => {
+            for (let i = 0; i < selectedOptions.length; i++) {
+              const lengthChecker = results.filter(result => {
+                return result.product_option_id === selectedOptions[i].id
+              });
+
+              if (lengthChecker.length === 0) {
+                const query =
+                  `INSERT INTO cart_detail
+                          (user_id, product_id, product_option_id, count, status, date)
+                   VALUES (${userId}, ${product.id}, ${selectedOptions[i].id}, ${selectedOptions[i].count}, 0, now())`;
+
+                queryConductor(connection, query)
+              } else {
+                const query =
+                  `UPDATE cart_detail
+                      SET count = count + ${selectedOptions[i].count}
+                    WHERE id = ${lengthChecker[0].id}`;
+
+                queryConductor(connection, query)
+              }
+            }
+            resolve()
+          }).then(() => {
+            // 이 부분 어떻게 해야 좋을지 좀 생각해봐봐
+            res.json({result: "success"});
+            connection.release();
+          });
         }
-        resolve(resResults)
-      }).then(resResults => {
-        res.json({resResults});
+      })
+  })
+}).patch("/", (req, res) => {
+  pool.getConnection((err, connection) => {
+    if (err) throw err;
+
+    const { cartId, value } = req.body;
+    const query =
+      `UPDATE cart_detail
+          SET count = count + ${value}
+        WHERE id = ${cartId}`;
+
+    queryConductor(connection, query)
+      .then(() => {
+        res.json({});
+        connection.release();
+      }).catch(err => {
+        res.json({err});
         connection.release();
       })
-    }
+  });
+}).delete("/", (req, res) => {
+  pool.getConnection((err, connection) => {
+    if (err) throw err;
+
+    const { cartId } = req.body;
+    const query =
+      `UPDATE cart_detail
+          SET status = 2
+        WHERE id = ${cartId}`;
+
+    queryConductor(connection, query)
+      .then(() => {
+        res.json({});
+        connection.release();
+      }).catch(err => {
+        res.json({err});
+        connection.release();
+      });
   })
 });
 
