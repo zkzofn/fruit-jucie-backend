@@ -8,12 +8,14 @@ router.get("/", (req, res, next) => {
   pool.getConnection((err, connection) => {
     if (err) throw err;
 
-    const query = ``;
+    const query =
+      `SELECT * 
+         FROM address
+        WHERE user_id = ${req.query.userId}`;
 
     queryConductor(connection, query)
       .then(results => {
-        res.json({results});
-
+        res.json({myAddressList: results});
         connection.release();
       })
   })

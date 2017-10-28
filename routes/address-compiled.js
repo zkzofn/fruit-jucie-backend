@@ -16,11 +16,10 @@ router.get("/", function (req, res, next) {
   _DBconfig.pool.getConnection(function (err, connection) {
     if (err) throw err;
 
-    var query = '';
+    var query = 'SELECT * \n         FROM address\n        WHERE user_id = ' + req.query.userId;
 
     (0, _queryConductor.queryConductor)(connection, query).then(function (results) {
-      res.json({ results: results });
-
+      res.json({ myAddressList: results });
       connection.release();
     });
   });
@@ -28,4 +27,4 @@ router.get("/", function (req, res, next) {
 
 module.exports = router;
 
-//# sourceMappingURL=defaultRoute-compiled.js.map
+//# sourceMappingURL=address-compiled.js.map
