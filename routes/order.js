@@ -22,36 +22,54 @@ router.get("/", (req, res, next) => {
     if (err) throw err;
 
     const data = req.body;
-    const keys = Object.keys(data);
+    const orderKeys = Object.keys(data).filter(key => {
+      return key !== "items"
+    });
+    const { items } = data;
 
-    let keyString = "";
-    let valueString = "";
+    let orderKeyString = "";
+    let orderValueString = "";
 
-    keys.forEach((key) => {
-      keyString += key + ", ";
+    orderKeys.forEach((key) => {
+      orderKeyString += key + ", ";
 
-      if (key === "user_id" || key === "status" || key === "total_price")
-        valueString += `${data[key]}, `;
-      else
-        valueString += `"${data[key]}", `;
+      // if (key === "user_id" || key === "status" || key === "total_price")
+      //   orderValueString += `${data[key]}, `;
+      // else
+      //  // for string values
+      orderValueString += `"${data[key]}", `;
     });
 
-    keyString += "date";
-    valueString += "now()";
-
+    orderKeyString += "date";
+    orderValueString += "now()";
 
     // cart_detail 의 status 바꿔줘야해
     // order_detail에 cart_detail에 있는 내용들 넣어줘야해
 
-    const query =
+    const orderQuery =
       `INSERT INTO \`order\`
-              (${keyString})
-       VALUES (${valueString})`;
+              (${orderKeyString})
+       VALUES (${orderValueString})`;
 
-    console.log(query);
-
-    queryConductor(connection, query)
+    queryConductor(connection, orderQuery)
       .then((results) => {
+
+        const orderId = results.insertId;
+
+        items.forEach(item => {
+          let itemsKeyString = "";
+          let itmesValueString = "";
+
+
+          //////////////////////////////////////////////////////////////////////////////////////////////////
+          // 여기에 query 넣는 부분 해야해
+
+          const itmeQuery =
+            `INSERT INTO order_detail
+                    (
+            `
+        })
+
         res.json(results);
         connection.release();
       });
