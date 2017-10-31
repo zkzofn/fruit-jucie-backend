@@ -27,52 +27,87 @@ router.get("/", (req, res, next) => {
     });
     const { items } = data;
 
-    let orderKeyString = "";
-    let orderValueString = "";
+    connection.beginTransaction(err => {
+      if (err) throw err;
 
-    orderKeys.forEach((key) => {
-      orderKeyString += key + ", ";
+      new Promise((resolve, reject) => {
+        let orderKeyString = "";
+        let orderValueString = "";
 
-      // if (key === "user_id" || key === "status" || key === "total_price")
-      //   orderValueString += `${data[key]}, `;
-      // else
-      //  // for string values
-      orderValueString += `"${data[key]}", `;
-    });
+        orderKeys.forEach((key) => {
+          orderKeyString += key + ", ";
 
-    orderKeyString += "date";
-    orderValueString += "now()";
+          // if (key === "user_id" || key === "status" || key === "total_price")
+          //   orderValueString += `${data[key]}, `;
+          // else
+          //  // for string values
+          orderValueString += `"${data[key]}", `;
+        });
 
-    // cart_detail 의 status 바꿔줘야해
-    // order_detail에 cart_detail에 있는 내용들 넣어줘야해
+        orderKeyString += "date";
+        orderValueString += "now()";
 
-    const orderQuery =
-      `INSERT INTO \`order\`
-              (${orderKeyString})
-       VALUES (${orderValueString})`;
+        // cart_detail 의 status 바꿔줘야해
+        // order_detail에 cart_detail에 있는 내용들 넣어줘야해
 
-    queryConductor(connection, orderQuery)
-      .then((results) => {
+        const query =
+          `INSERT INTO \`order\`
+                (${orderKeyString})
+         VALUES (${orderValueString})`;
 
+        queryConductor(connection, query)
+          .then((results) => {
+            resolve({results})
+          }).catch(err => {
+            connection.rollback(() => {
+              throw err
+            })
+          })
+      }).then(({results}) => {
         const orderId = results.insertId;
 
-        items.forEach(item => {
-          let itemsKeyString = "";
-          let itmesValueString = "";
+        const query =
+          `INSERT INTO order_detail
+                (order_id, product_id, product_option_id, count)
+                SELECT "${orderId}", product_id, product_option_id, count
+                  FORM cart_detail
+                 WHERE user_id = ${data.user_id}
+                   AND status = 0`;
 
+        return queryConductor(connection, query)
+          .catch(err => {
+            connection.rollback(() => {
+              throw err
+            })
+          })
+      }).then(() => {
+        const query =
+          `UPDATE cart_detail
+            SET status = 1
+          WHERE user_id = ${data.user_id}
+            AND status = 0`;
 
-          //////////////////////////////////////////////////////////////////////////////////////////////////
-          // 여기에 query 넣는 부분 해야해
-
-          const itmeQuery =
-            `INSERT INTO order_detail
-                    (
-            `
-        })
-
-        res.json(results);
+        return queryConductor(connection, query)
+          .then(() => {
+            connection.commit(err => {
+              if (err)
+                connection.rollback(() => {
+                  throw err;
+                })
+            })
+          }).catch(err => {
+            connection.rollback(() => {
+              throw err;
+            })
+          })
+      }).then(() => {
+        console.log("Post order success");
+        connection.release();
+      }).catch(err => {
+        if (err) throw err;
         connection.release();
       });
+    })
   })
 });
 
