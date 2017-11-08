@@ -1,5 +1,6 @@
 import express from 'express';
 import { pool } from './DBconfig';
+import session from 'express-session';
 
 const router = express.Router();
 
@@ -35,6 +36,17 @@ router.get("/", (req, res, next) => {
       connection.release();
     })
   })
+}).get("/login", (req, res) => {
+  let sess = req.session;
+
+  console.log(req);
+
+  if (sess.id)
+    console.log("there");
+  else
+    console.log("no there");
+
+  res.json({sess});
 });
 
 module.exports = router;

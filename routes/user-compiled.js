@@ -6,6 +6,10 @@ var _express2 = _interopRequireDefault(_express);
 
 var _DBconfig = require('./DBconfig');
 
+var _expressSession = require('express-session');
+
+var _expressSession2 = _interopRequireDefault(_expressSession);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var router = _express2.default.Router();
@@ -38,6 +42,14 @@ router.get("/", function (req, res, next) {
       connection.release();
     });
   });
+}).get("/login", function (req, res) {
+  var sess = req.session;
+
+  console.log(req);
+
+  if (sess.id) console.log("there");else console.log("no there");
+
+  res.json({ sess: sess });
 });
 
 module.exports = router;
