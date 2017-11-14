@@ -67,6 +67,7 @@ router.get("/", function (req, res, next) {
                 }
                 console.log('user id = ' + data.user_id + ' postOrder success');
                 connection.release();
+                res.end();
               });
             }, function (err) {
               console.log("Error occurs while UPDATE cart_detail information in postOrder.");
@@ -91,8 +92,9 @@ router.get("/", function (req, res, next) {
         });
       });
     });
-  } catch (err) {
-    res.json({ err: err });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: error });
   }
 });
 

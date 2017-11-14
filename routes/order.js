@@ -76,6 +76,7 @@ router.get("/", (req, res, next) => {
                       }
                       console.log(`user id = ${data.user_id} postOrder success`);
                       connection.release();
+                      res.end();
                     })
                   }, err => {
                     console.log("Error occurs while UPDATE cart_detail information in postOrder.");
@@ -100,8 +101,9 @@ router.get("/", (req, res, next) => {
           })
       })
     })
-  } catch (err) {
-    res.json({err});
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({error});
   }
 });
 
