@@ -28,17 +28,60 @@ const router = express.Router();
  *
  * @return null
  */
-router.get("/", (req, res) => {
-  let sess = req.session;
+router.post("/login", (req, res) => {
+  let { session } = req;
+  const { account, password } = req.body;
 
-  sess.numbeeer = "123";
 
-  if (sess.id)
-    console.log("there");
-  else
-    console.log("no there");
+  pool.getConnection((error, connection) => {
+    new Promise((resolve, reject) => {
+      if (!(account && password)) {
+        const msg = "Wrong request body in # POST /user/login"
+        reject(msg);
+      } else {
+        resolve();
+      }
+    }).then(() => {
+      // 사용자 있는지 먼저 체크
+      const query = `
+      SELECT name, nickname, password, divider, email
+        FROM user
+       WHERE account = "${account}"`;
 
-  res.json({sess});
+      queryConductor(connection, query).then((results) => {
+        if (results.length === 0) {
+          const msg = "Wrong account information.";
+          console.log(msg);
+          connection.release();
+          res.status(404).json({msg});
+        } else {
+          const passwordOriginal = password;
+          const { name, nickname, password, divider, email } = results[0];
+
+          bcrypt.compare(passwordOriginal, password, (error, result) => {
+            if (error) {
+              const msg = "Wrong account information."
+              console.log(msg);
+              connection.release();
+              res.status(404).json({msg});
+            } else {
+
+            }
+            if (result) {
+
+            } else {
+              const
+            }
+          })
+        }
+      })
+    }).catch((error) => {
+      console.log(error);
+      connection.release();
+      res.status(400).json({error});
+    });
+
+  });
 }).get('/test', (req, res) => {
   let sess = req.session;
 
@@ -78,8 +121,6 @@ router.get("/", (req, res) => {
  */
 .post('/', (req, res) => {
   pool.getConnection((err, connection) => {
-    console.log(req.session);
-
     const { account, name, nickname, phone, zipcode, address1, address2, email, join_route } = req.body;
     let { password } = req.body;
 
@@ -100,6 +141,7 @@ router.get("/", (req, res) => {
         if (results.length > 0) {
           const msg = "There is already account.";
           console.log(msg);
+          connection.release();
           res.status(403).json({msg});
         } else {
           const saltRounds = 10;
@@ -110,6 +152,7 @@ router.get("/", (req, res) => {
 
               console.log(error);
               console.log(msg);
+              connection.release();
               res.status(500).json({error, msg});
             } else {
               password = hash;
@@ -119,6 +162,7 @@ router.get("/", (req, res) => {
                   const msg = "Error occurs while TRANSACTION in # POST /user";
                   console.log(error);
                   console.log(msg);
+                  connection.release();
                   res.status(500).json({error, msg});
                 } else {
                   // SHA1("test6")
@@ -194,7 +238,8 @@ router.get("/", (req, res) => {
       })
     }).catch((error) => {
       console.log(error);
-      res.status(500).json({error});
+      connection.release();
+      res.status(400).json({error});
     });
   })
 });
