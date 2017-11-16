@@ -19,7 +19,7 @@ const router = express.Router();
  * @sequence
  * 1. 입력 값이 모두 입력되었는지 확인
  * 2. 아이디에 해당하는 비밀번호가 일치하는지 확인
- * 3. 일치하는 경우 session 정보 설정
+ * 3. 비밀번호가 일치하는 경우 session 정보 설정
  *     session.account = account;
  *     session.name = name;
  *     session.nickname = nickname;
@@ -30,19 +30,44 @@ const router = express.Router();
  */
 router.post("/login", (req, res) => {
   let { session } = req;
-  const { account, password } = req.body;
+  const { account } = req.body;
+  const passwordOriginal = req.body.password;
+
+  const salt = "2atMoR2Gr22N";
+
+  const saltRounds = 10;
+  //
+  // var hash = bcrypt.hashSync(passwordOriginal, saltRounds);
+  //
+  // console.log(hash)
+  // res.end();
+
+  // bcrypt.genSalt(saltRounds, function(err, salt) {
+  //   console.log(salt);
+  //   res.end();
+  // })
+
+  // bcrypt.hash(passwordOriginal, salt, (error, hash) => {
+  //   console.log(hash);
+  //   res.json({hash});
+  //
+  //   bcrypt.compare(passwordOriginal, hash, (error, result) => {
+  //     console.log(result);
+  //   })
+  // });
 
 
   pool.getConnection((error, connection) => {
     new Promise((resolve, reject) => {
-      if (!(account && password)) {
+      // 1. 입력 값이 모두 입력되었는지 확인
+      if (!(account && passwordOriginal)) {
         const msg = "Wrong request body in # POST /user/login"
         reject(msg);
       } else {
         resolve();
       }
     }).then(() => {
-      // 사용자 있는지 먼저 체크
+      // 2. 아이디에 해당하는 비밀번호가 일치하는지 확인
       const query = `
       SELECT name, nickname, password, divider, email
         FROM user
@@ -55,22 +80,34 @@ router.post("/login", (req, res) => {
           connection.release();
           res.status(404).json({msg});
         } else {
-          const passwordOriginal = password;
           const { name, nickname, password, divider, email } = results[0];
 
+          console.log(password);
+
+          // 3. 비밀번호가 일치하는 경우 session 정보 설정
           bcrypt.compare(passwordOriginal, password, (error, result) => {
             if (error) {
-              const msg = "Wrong account information."
+              const msg = "Error occurs while COMPARE PASSWORD in # POST /user/login";
               console.log(msg);
               connection.release();
               res.status(404).json({msg});
             } else {
+              console.log(result);
 
-            }
-            if (result) {
-
-            } else {
-              const
+              if (result) {
+                session.account = account;
+                session.name = name;
+                session.nickname = nickname;
+                session.divider = divider;
+                session.email = email;
+                connection.release();
+                res.end();
+              } else {
+                const msg = "Wrong account information.";
+                console.log(msg);
+                connection.release();
+                res.status(404).json({msg});
+              }
             }
           })
         }
@@ -80,7 +117,6 @@ router.post("/login", (req, res) => {
       connection.release();
       res.status(400).json({error});
     });
-
   });
 }).get('/test', (req, res) => {
   let sess = req.session;
@@ -196,6 +232,8 @@ router.post("/login", (req, res) => {
                     now(),
                     ${join_route}
                   )`;
+
+                  console.log(password);
 
                   queryConductor(connection, query).then(() => {
                     connection.commit(error => {
