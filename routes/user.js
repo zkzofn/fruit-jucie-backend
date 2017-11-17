@@ -33,30 +33,6 @@ router.post("/login", (req, res) => {
   const { account } = req.body;
   const passwordOriginal = req.body.password;
 
-  const salt = "2atMoR2Gr22N";
-
-  const saltRounds = 10;
-  //
-  // var hash = bcrypt.hashSync(passwordOriginal, saltRounds);
-  //
-  // console.log(hash)
-  // res.end();
-
-  // bcrypt.genSalt(saltRounds, function(err, salt) {
-  //   console.log(salt);
-  //   res.end();
-  // })
-
-  // bcrypt.hash(passwordOriginal, salt, (error, hash) => {
-  //   console.log(hash);
-  //   res.json({hash});
-  //
-  //   bcrypt.compare(passwordOriginal, hash, (error, result) => {
-  //     console.log(result);
-  //   })
-  // });
-
-
   pool.getConnection((error, connection) => {
     new Promise((resolve, reject) => {
       // 1. 입력 값이 모두 입력되었는지 확인
@@ -82,8 +58,6 @@ router.post("/login", (req, res) => {
         } else {
           const { name, nickname, password, divider, email } = results[0];
 
-          console.log(password);
-
           // 3. 비밀번호가 일치하는 경우 session 정보 설정
           bcrypt.compare(passwordOriginal, password, (error, result) => {
             if (error) {
@@ -92,8 +66,6 @@ router.post("/login", (req, res) => {
               connection.release();
               res.status(404).json({msg});
             } else {
-              console.log(result);
-
               if (result) {
                 session.account = account;
                 session.name = name;
@@ -118,10 +90,38 @@ router.post("/login", (req, res) => {
       res.status(400).json({error});
     });
   });
-}).get('/test', (req, res) => {
-  let sess = req.session;
+})
+/**
+ * @file /routes/users.js
+ * @brief 로그아웃 API
+ * @author 이장호
+ * @date 2017-11-17
+ *
+ * @sequence
+ * 1. session 에 account 정보가 있는지 확인 (로그인 상태인지 확인)
+ * 2-1. 로그인 상태이면 session 삭제 후 redirect -> "/"
+ * 2-2. 로그인 상태가 아니라면 redirect -> "/"
+ *
+ * @return null
+ */
 
-  res.json(sess);
+.get('/logout', (req, res) => {
+  const { session } = req;
+
+  if (session.account) {
+    req.session.destroy(error => {
+      if (error) {
+        const msg = "Error occurs while DESTROYING SESSION in # GET /user/logout";
+        console.log(error);
+        console.log(msg);
+        res.status(500).json({error, msg});
+      } else {
+        res.redirect("/")
+      }
+    })
+  } else {
+    res.redirect("/")
+  }
 })
 /**
  * @file /routes/users.js
@@ -185,7 +185,6 @@ router.post("/login", (req, res) => {
           bcrypt.hash(password, saltRounds, (error, hash) => {
             if (error) {
               const msg = "Error occurs while CREATE HASH PASSWORD in # POST /user";
-
               console.log(error);
               console.log(msg);
               connection.release();
