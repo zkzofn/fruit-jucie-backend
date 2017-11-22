@@ -37,7 +37,7 @@ router.post("/login", (req, res) => {
     new Promise((resolve, reject) => {
       // 1. 입력 값이 모두 입력되었는지 확인
       if (!(account && passwordOriginal)) {
-        const msg = "Wrong request body in # POST /user/login"
+        const msg = "Wrong request body in # POST /user/login";
         reject(msg);
       } else {
         resolve();
@@ -51,10 +51,10 @@ router.post("/login", (req, res) => {
 
       queryConductor(connection, query).then((results) => {
         if (results.length === 0) {
-          const msg = "Wrong account information.";
+          const msg = "로그인 정보가 잘못되었습니다.";
           console.log(msg);
           connection.release();
-          res.status(404).json({msg});
+          res.json({status: 404, msg});
         } else {
           const { name, nickname, password, divider, email } = results[0];
 
@@ -62,27 +62,43 @@ router.post("/login", (req, res) => {
           bcrypt.compare(passwordOriginal, password, (error, result) => {
             if (error) {
               const msg = "Error occurs while COMPARE PASSWORD in # POST /user/login";
+              console.log(error);
               console.log(msg);
               connection.release();
-              res.status(404).json({msg});
+              res.status(500).json({error, msg});
             } else {
               if (result) {
+                const user = {
+                  account,
+                  name,
+                  nickname,
+                  divider,
+                  email
+                };
+
                 session.account = account;
                 session.name = name;
                 session.nickname = nickname;
                 session.divider = divider;
                 session.email = email;
+
                 connection.release();
-                res.end();
+                res.json({status: 200, user});
               } else {
-                const msg = "Wrong account information.";
+                const msg = "로그인 정보가 잘못되었습니다.";
                 console.log(msg);
                 connection.release();
-                res.status(404).json({msg});
+                res.json({status: 404, msg});
               }
             }
           })
         }
+      }, error => {
+        const msg = "Error occurs while SELECT user in # POST /user/login"
+        console.log(error);
+        console.log(msg);
+        connection.release();
+        res.status(500).json({error, msg});
       })
     }).catch((error) => {
       console.log(error);
@@ -279,6 +295,25 @@ router.post("/login", (req, res) => {
       res.status(400).json({error});
     });
   })
+})
+/**
+ * @file /routes/users.js
+ * @brief GET validate API
+ * @author 이장호
+ * @date 2017-11-20
+ *
+ * @sequence
+ * 1. session 이 유효한지 확인
+ * 2. 결과값 return
+ *
+ * @return 유효하다면 true 유효하지 않다면 false
+ */
+.get('/validate', (req, res) => {
+  if (req.session.account) {
+    res.json({result: true});
+  } else {
+    res.json({result: false});
+  }
 });
 
 module.exports = router;

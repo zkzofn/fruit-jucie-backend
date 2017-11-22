@@ -45,30 +45,6 @@ router.post("/login", function (req, res) {
 
   var passwordOriginal = req.body.password;
 
-  var salt = "2atMoR2Gr22N";
-
-  var saltRounds = 10;
-  //
-  // var hash = bcrypt.hashSync(passwordOriginal, saltRounds);
-  //
-  // console.log(hash)
-  // res.end();
-
-  // bcrypt.genSalt(saltRounds, function(err, salt) {
-  //   console.log(salt);
-  //   res.end();
-  // })
-
-  // bcrypt.hash(passwordOriginal, salt, (error, hash) => {
-  //   console.log(hash);
-  //   res.json({hash});
-  //
-  //   bcrypt.compare(passwordOriginal, hash, (error, result) => {
-  //     console.log(result);
-  //   })
-  // });
-
-
   _DBconfig.pool.getConnection(function (error, connection) {
     new Promise(function (resolve, reject) {
       // 1. 입력 값이 모두 입력되었는지 확인
@@ -84,10 +60,10 @@ router.post("/login", function (req, res) {
 
       (0, _queryConductor.queryConductor)(connection, query).then(function (results) {
         if (results.length === 0) {
-          var msg = "Wrong account information.";
+          var msg = "로그인 정보가 잘못되었습니다.";
           console.log(msg);
           connection.release();
-          res.status(404).json({ msg: msg });
+          res.json({ status: 404, msg: msg });
         } else {
           var _results$ = results[0],
               name = _results$.name,
@@ -96,36 +72,48 @@ router.post("/login", function (req, res) {
               divider = _results$.divider,
               email = _results$.email;
 
-
-          console.log(password);
-
           // 3. 비밀번호가 일치하는 경우 session 정보 설정
+
           _bcrypt2.default.compare(passwordOriginal, password, function (error, result) {
             if (error) {
               var _msg = "Error occurs while COMPARE PASSWORD in # POST /user/login";
+              console.log(error);
               console.log(_msg);
               connection.release();
-              res.status(404).json({ msg: _msg });
+              res.status(500).json({ error: error, msg: _msg });
             } else {
-              console.log(result);
-
               if (result) {
+                var user = {
+                  account: account,
+                  name: name,
+                  nickname: nickname,
+                  divider: divider,
+                  email: email
+                };
+
                 session.account = account;
                 session.name = name;
                 session.nickname = nickname;
                 session.divider = divider;
                 session.email = email;
+
                 connection.release();
-                res.end();
+                res.json({ status: 200, user: user });
               } else {
-                var _msg2 = "Wrong account information.";
+                var _msg2 = "로그인 정보가 잘못되었습니다.";
                 console.log(_msg2);
                 connection.release();
-                res.status(404).json({ msg: _msg2 });
+                res.json({ status: 404, msg: _msg2 });
               }
             }
           });
         }
+      }, function (error) {
+        var msg = "Error occurs while SELECT user in # POST /user/login";
+        console.log(error);
+        console.log(msg);
+        connection.release();
+        res.status(500).json({ error: error, msg: msg });
       });
     }).catch(function (error) {
       console.log(error);
@@ -133,10 +121,39 @@ router.post("/login", function (req, res) {
       res.status(400).json({ error: error });
     });
   });
-}).get('/test', function (req, res) {
-  var sess = req.session;
+})
+/**
+ * @file /routes/users.js
+ * @brief 로그아웃 API
+ * @author 이장호
+ * @date 2017-11-17
+ *
+ * @sequence
+ * 1. session 에 account 정보가 있는지 확인 (로그인 상태인지 확인)
+ * 2-1. 로그인 상태이면 session 삭제 후 redirect -> "/"
+ * 2-2. 로그인 상태가 아니라면 redirect -> "/"
+ *
+ * @return null
+ */
 
-  res.json(sess);
+.get('/logout', function (req, res) {
+  var session = req.session;
+
+
+  if (session.account) {
+    req.session.destroy(function (error) {
+      if (error) {
+        var msg = "Error occurs while DESTROYING SESSION in # GET /user/logout";
+        console.log(error);
+        console.log(msg);
+        res.status(500).json({ error: error, msg: msg });
+      } else {
+        res.redirect("/");
+      }
+    });
+  } else {
+    res.redirect("/");
+  }
 })
 /**
  * @file /routes/users.js
@@ -207,7 +224,6 @@ router.post("/login", function (req, res) {
           _bcrypt2.default.hash(password, saltRounds, function (error, hash) {
             if (error) {
               var _msg3 = "Error occurs while CREATE HASH PASSWORD in # POST /user";
-
               console.log(error);
               console.log(_msg3);
               connection.release();
@@ -276,6 +292,25 @@ router.post("/login", function (req, res) {
       res.status(400).json({ error: error });
     });
   });
+})
+/**
+ * @file /routes/users.js
+ * @brief GET validate API
+ * @author 이장호
+ * @date 2017-11-20
+ *
+ * @sequence
+ * 1. session 이 유효한지 확인
+ * 2. 결과값 return
+ *
+ * @return 유효하다면 true 유효하지 않다면 false
+ */
+.get('/validate', function (req, res) {
+  if (req.session.account) {
+    res.json({ result: true });
+  } else {
+    res.json({ result: false });
+  }
 });
 
 module.exports = router;
