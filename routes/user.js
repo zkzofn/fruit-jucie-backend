@@ -54,7 +54,7 @@ router.post("/login", (req, res) => {
           const msg = "로그인 정보가 잘못되었습니다.";
           console.log(msg);
           connection.release();
-          res.json({status: 404, msg});
+          res.json({user: null, msg});
         } else {
           const { name, nickname, password, divider, email } = results[0];
 
@@ -83,12 +83,13 @@ router.post("/login", (req, res) => {
                 session.email = email;
 
                 connection.release();
-                res.json({status: 200, user});
+                const msg = "로그인 되었습니다.";
+                res.json({user, msg});
               } else {
                 const msg = "로그인 정보가 잘못되었습니다.";
                 console.log(msg);
                 connection.release();
-                res.json({status: 404, msg});
+                res.json({user: null, msg});
               }
             }
           })
@@ -310,9 +311,9 @@ router.post("/login", (req, res) => {
  */
 .get('/validate', (req, res) => {
   if (req.session.account) {
-    res.json({result: true});
+    res.json({validate: true});
   } else {
-    res.json({result: false});
+    res.json({validate: false});
   }
 });
 

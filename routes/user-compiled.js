@@ -63,7 +63,7 @@ router.post("/login", function (req, res) {
           var msg = "로그인 정보가 잘못되었습니다.";
           console.log(msg);
           connection.release();
-          res.json({ status: 404, msg: msg });
+          res.json({ user: null, msg: msg });
         } else {
           var _results$ = results[0],
               name = _results$.name,
@@ -98,12 +98,13 @@ router.post("/login", function (req, res) {
                 session.email = email;
 
                 connection.release();
-                res.json({ status: 200, user: user });
+                var _msg2 = "로그인 되었습니다.";
+                res.json({ user: user, msg: _msg2 });
               } else {
-                var _msg2 = "로그인 정보가 잘못되었습니다.";
-                console.log(_msg2);
+                var _msg3 = "로그인 정보가 잘못되었습니다.";
+                console.log(_msg3);
                 connection.release();
-                res.json({ status: 404, msg: _msg2 });
+                res.json({ user: null, msg: _msg3 });
               }
             }
           });
@@ -223,21 +224,21 @@ router.post("/login", function (req, res) {
 
           _bcrypt2.default.hash(password, saltRounds, function (error, hash) {
             if (error) {
-              var _msg3 = "Error occurs while CREATE HASH PASSWORD in # POST /user";
+              var _msg4 = "Error occurs while CREATE HASH PASSWORD in # POST /user";
               console.log(error);
-              console.log(_msg3);
+              console.log(_msg4);
               connection.release();
-              res.status(500).json({ error: error, msg: _msg3 });
+              res.status(500).json({ error: error, msg: _msg4 });
             } else {
               password = hash;
 
               connection.beginTransaction(function (error) {
                 if (error) {
-                  var _msg4 = "Error occurs while TRANSACTION in # POST /user";
+                  var _msg5 = "Error occurs while TRANSACTION in # POST /user";
                   console.log(error);
-                  console.log(_msg4);
+                  console.log(_msg5);
                   connection.release();
-                  res.status(500).json({ error: error, msg: _msg4 });
+                  res.status(500).json({ error: error, msg: _msg5 });
                 } else {
                   // SHA1("test6")
                   // a66df261120b6c2311c6ef0b1bab4e583afcbcc0
@@ -249,13 +250,13 @@ router.post("/login", function (req, res) {
                   (0, _queryConductor.queryConductor)(connection, _query).then(function () {
                     connection.commit(function (error) {
                       if (error) {
-                        var _msg5 = "Error occurs while COMMIT in # POST /user";
+                        var _msg6 = "Error occurs while COMMIT in # POST /user";
 
                         console.log(error);
-                        console.log(_msg5);
+                        console.log(_msg6);
                         connection.rollback(function () {
                           connection.release();
-                          res.status(500).json({ error: error, msg: _msg5 });
+                          res.status(500).json({ error: error, msg: _msg6 });
                         });
                       } else {
                         var session = req.session;
@@ -307,9 +308,9 @@ router.post("/login", function (req, res) {
  */
 .get('/validate', function (req, res) {
   if (req.session.account) {
-    res.json({ result: true });
+    res.json({ validate: true });
   } else {
-    res.json({ result: false });
+    res.json({ validate: false });
   }
 });
 
