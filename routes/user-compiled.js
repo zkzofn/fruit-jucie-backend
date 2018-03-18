@@ -12,6 +12,12 @@ var _bcrypt = require('bcrypt');
 
 var _bcrypt2 = _interopRequireDefault(_bcrypt);
 
+var _redis = require('redis');
+
+var _redis2 = _interopRequireDefault(_redis);
+
+var _auth = require('./auth');
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var router = _express2.default.Router();
@@ -42,6 +48,8 @@ var router = _express2.default.Router();
 router.post("/login", function (req, res) {
   var session = req.session;
   var account = req.body.account;
+
+  var redisClient = _redis2.default.createClient();
 
   var passwordOriginal = req.body.password;
 
@@ -91,20 +99,28 @@ router.post("/login", function (req, res) {
                   email: email
                 };
 
-                session.account = account;
-                session.name = name;
-                session.nickname = nickname;
-                session.divider = divider;
-                session.email = email;
+                var userInfoString = JSON.stringify(user);
+                var sessionKey = (0, _auth.makeSessionKey)(userInfoString);
 
                 connection.release();
-                var _msg2 = "로그인 되었습니다.";
-                res.json({ user: user, msg: _msg2 });
+
+                redisClient.setex(sessionKey, _auth.sessionTimeout, userInfoString, function (error) {
+                  redisClient.quit();
+                  if (error) {
+                    var _msg2 = "Error occurs SET REDIS KEY in # POST /user/login";
+                    console.log(error);
+                    console.log(_msg2);
+                    res.status(500).json({ sessionKey: null, error: error, msg: _msg2 });
+                  } else {
+                    console.log(sessionKey);
+                    res.json({ sessionKey: sessionKey, user: user });
+                  }
+                });
               } else {
                 var _msg3 = "로그인 정보가 잘못되었습니다.";
                 console.log(_msg3);
                 connection.release();
-                res.json({ user: null, msg: _msg3 });
+                res.json({ sessionKey: null, msg: _msg3 });
               }
             }
           });
@@ -307,11 +323,50 @@ router.post("/login", function (req, res) {
  * @return 유효하다면 true 유효하지 않다면 false
  */
 .get('/validate', function (req, res) {
-  if (req.session.account) {
-    res.json({ validate: true });
-  } else {
-    res.json({ validate: false });
-  }
+  var redisClient = _redis2.default.createClient();
+  var sessionKey = req.headers.authorization;
+
+  redisClient.get(sessionKey, function (error, reply) {
+    if (error) {
+      var msg = "Error occurs while REDIS GET in # GET /user/validate";
+      console.log(error);
+      console.log(msg);
+      redisClient.quit();
+      res.status(500).json({ error: error, msg: msg });
+    } else {
+      if (reply) {
+        redisClient.expire(sessionKey, 60 * 60, function (error, reply) {
+          if (error) {
+            var _msg7 = "Error occurs while REDIS EXPIREAT in #GET /user/validate";
+            console.log(error);
+            console.log(_msg7);
+            redisClient.quit();
+            res.status(500).json({ error: error, msg: _msg7 });
+          } else {
+            redisClient.quit();
+            res.json({ validate: true });
+          }
+        });
+      } else {
+        res.json({ validate: false });
+      }
+    }
+  });
+
+  // if (session.account) {
+  //   const user = {
+  //     account: session.account,
+  //     name: session.name,
+  //     nickname: session.nickname,
+  //     divider: session.divider,
+  //     email: session.email
+  //   };
+  //
+  //   res.json({validate: true, user});
+  //   res.end();
+  // } else {
+  //   res.json({validate: false});
+  // }
 });
 
 module.exports = router;

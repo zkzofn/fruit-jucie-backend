@@ -2,6 +2,8 @@ import express from 'express';
 import { pool } from './DBconfig';
 import { queryConductor } from './queryConductor';
 import bcrypt from 'bcrypt';
+import redis from 'redis';
+import { secretToken, makeSessionKey, getAuthUser, sessionTimeout } from './auth';
 
 const router = express.Router();
 
@@ -31,6 +33,8 @@ const router = express.Router();
 router.post("/login", (req, res) => {
   let { session } = req;
   const { account } = req.body;
+  const redisClient = redis.createClient();
+
   const passwordOriginal = req.body.password;
 
   pool.getConnection((error, connection) => {
@@ -76,26 +80,34 @@ router.post("/login", (req, res) => {
                   email
                 };
 
-                session.account = account;
-                session.name = name;
-                session.nickname = nickname;
-                session.divider = divider;
-                session.email = email;
+                const userInfoString = JSON.stringify(user);
+                const sessionKey = makeSessionKey(userInfoString);
 
                 connection.release();
-                const msg = "로그인 되었습니다.";
-                res.json({user, msg});
+
+                redisClient.setex(sessionKey, sessionTimeout, userInfoString, (error) => {
+                  redisClient.quit();
+                  if (error) {
+                    const msg = "Error occurs SET REDIS KEY in # POST /user/login";
+                    console.log(error);
+                    console.log(msg);
+                    res.status(500).json({sessionKey: null, error, msg});
+                  } else {
+                    console.log(sessionKey);
+                    res.json({sessionKey, user});
+                  }
+                });
               } else {
                 const msg = "로그인 정보가 잘못되었습니다.";
                 console.log(msg);
                 connection.release();
-                res.json({user: null, msg});
+                res.json({sessionKey: null, msg});
               }
             }
           })
         }
       }, error => {
-        const msg = "Error occurs while SELECT user in # POST /user/login"
+        const msg = "Error occurs while SELECT user in # POST /user/login";
         console.log(error);
         console.log(msg);
         connection.release();
@@ -310,11 +322,52 @@ router.post("/login", (req, res) => {
  * @return 유효하다면 true 유효하지 않다면 false
  */
 .get('/validate', (req, res) => {
-  if (req.session.account) {
-    res.json({validate: true});
-  } else {
-    res.json({validate: false});
-  }
+  const redisClient = redis.createClient();
+  const sessionKey = req.headers.authorization;
+
+  redisClient.get(sessionKey, (error, reply) => {
+    if (error) {
+      const msg = "Error occurs while REDIS GET in # GET /user/validate";
+      console.log(error);
+      console.log(msg);
+      redisClient.quit();
+      res.status(500).json({error, msg});
+    } else {
+      if (reply) {
+        redisClient.expire(sessionKey, 60 * 60, (error, reply) => {
+          if (error) {
+            const msg = "Error occurs while REDIS EXPIREAT in #GET /user/validate";
+            console.log(error);
+            console.log(msg);
+            redisClient.quit();
+            res.status(500).json({error, msg});
+          } else {
+            redisClient.quit();
+            res.json({validate: true});
+          }
+        });
+      } else {
+        res.json({validate: false});
+      }
+    }
+  });
+
+
+
+  // if (session.account) {
+  //   const user = {
+  //     account: session.account,
+  //     name: session.name,
+  //     nickname: session.nickname,
+  //     divider: session.divider,
+  //     email: session.email
+  //   };
+  //
+  //   res.json({validate: true, user});
+  //   res.end();
+  // } else {
+  //   res.json({validate: false});
+  // }
 });
 
 module.exports = router;
