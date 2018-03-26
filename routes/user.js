@@ -351,23 +351,46 @@ router.post("/login", (req, res) => {
       }
     }
   });
+})
+/**
+ * @file /routes/users.js
+ * @brief GET user API
+ * @author 이장호
+ * @date 2017-11-20
+ *
+ * @sequence
+ * 1. 사용자 정보 return
+ *
+ * @return user<Object>
+ */
+.get('/', (req, res) => {
+  const sessionKey = req.headers.authorization;
+  const sessionUser = getAuthUser(sessionKey);
 
+  pool.getConnection((err, connection) => {
+    if (err) {
+      const msg = "Error occurs while pool.getConnection in # GET /user";
 
+      console.log(err);
+      console.log(msg);
+      res.json({err, msg});
+    } else {
+      new Promise((resolve, reject) => {
+        const query = `
+        SELECT id, account, name, nickname, phone, address1, address2, email, zipcode
+          FROM user
+         where account = '${sessionUser.account}';
+        `;
 
-  // if (session.account) {
-  //   const user = {
-  //     account: session.account,
-  //     name: session.name,
-  //     nickname: session.nickname,
-  //     divider: session.divider,
-  //     email: session.email
-  //   };
-  //
-  //   res.json({validate: true, user});
-  //   res.end();
-  // } else {
-  //   res.json({validate: false});
-  // }
+        queryConductor(connection, query).then(results => {
+          const user = results[0];
+          
+          res.json({user});
+          connection.release();
+        });
+      })
+    }
+  });
 });
 
 module.exports = router;

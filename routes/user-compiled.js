@@ -352,21 +352,42 @@ router.post("/login", function (req, res) {
       }
     }
   });
+})
+/**
+ * @file /routes/users.js
+ * @brief GET user API
+ * @author 이장호
+ * @date 2017-11-20
+ *
+ * @sequence
+ * 1. 사용자 정보 return
+ *
+ * @return user<Object>
+ */
+.get('/', function (req, res) {
+  var sessionKey = req.headers.authorization;
+  var sessionUser = (0, _auth.getAuthUser)(sessionKey);
 
-  // if (session.account) {
-  //   const user = {
-  //     account: session.account,
-  //     name: session.name,
-  //     nickname: session.nickname,
-  //     divider: session.divider,
-  //     email: session.email
-  //   };
-  //
-  //   res.json({validate: true, user});
-  //   res.end();
-  // } else {
-  //   res.json({validate: false});
-  // }
+  _DBconfig.pool.getConnection(function (err, connection) {
+    if (err) {
+      var msg = "Error occurs while pool.getConnection in # GET /user";
+
+      console.log(err);
+      console.log(msg);
+      res.json({ err: err, msg: msg });
+    } else {
+      new Promise(function (resolve, reject) {
+        var query = '\n        SELECT id, account, name, nickname, phone, address1, address2, email, zipcode\n          FROM user\n         where account = \'' + sessionUser.account + '\';\n        ';
+
+        (0, _queryConductor.queryConductor)(connection, query).then(function (results) {
+          var user = results[0];
+
+          res.json({ user: user });
+          connection.release();
+        });
+      });
+    }
+  });
 });
 
 module.exports = router;
