@@ -12,7 +12,25 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 var router = _express2.default.Router();
 
-router.get("/", function (req, res, next) {
+router.get("/check", function (req, res) {
+  _DBconfig.pool.getConnection(function (err, connection) {
+    if (err) {
+      var msg = "Error occurs while pool.getConnection # GET /product/check";
+
+      console.log(err);
+      console.log(msg);
+      res.json({ err: err, msg: msg });
+    } else {
+      var query = '\n      SELECT id\n        FROM product\n       WHERE id = ' + req.query.productId + '\n         AND unusable_flag = NULL';
+
+      (0, _queryConductor.queryConductor)(connection, query).then(function (results) {
+        var productCheck = results.length > 0;
+        connection.release();
+        res.json({ productCheck: productCheck });
+      });
+    }
+  });
+}).get("/", function (req, res, next) {
   _DBconfig.pool.getConnection(function (err, connection) {
     if (err) throw err;
 
