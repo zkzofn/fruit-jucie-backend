@@ -17,7 +17,7 @@ router.get("/check", (req, res) => {
       SELECT id
         FROM product
        WHERE id = ${req.query.productId}
-         AND unusable_flag = NULL`;
+         AND unusable_flag IS NULL`;
 
       queryConductor(connection, query).then(results => {
         const productCheck = results.length > 0;

@@ -21,7 +21,7 @@ router.get("/check", function (req, res) {
       console.log(msg);
       res.json({ err: err, msg: msg });
     } else {
-      var query = '\n      SELECT id\n        FROM product\n       WHERE id = ' + req.query.productId + '\n         AND unusable_flag = NULL';
+      var query = '\n      SELECT id\n        FROM product\n       WHERE id = ' + req.query.productId + '\n         AND unusable_flag IS NULL';
 
       (0, _queryConductor.queryConductor)(connection, query).then(function (results) {
         var productCheck = results.length > 0;
