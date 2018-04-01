@@ -31,7 +31,6 @@ const router = express.Router();
  * @return null
  */
 router.post("/login", (req, res) => {
-  let { session } = req;
   const { account } = req.body;
   const redisClient = redis.createClient();
 
@@ -49,7 +48,7 @@ router.post("/login", (req, res) => {
     }).then(() => {
       // 2. 아이디에 해당하는 비밀번호가 일치하는지 확인
       const query = `
-      SELECT name, nickname, password, divider, email
+      SELECT id, account, name, nickname, password, divider, email
         FROM user
        WHERE account = "${account}"`;
 
@@ -60,7 +59,7 @@ router.post("/login", (req, res) => {
           connection.release();
           res.json({user: null, msg});
         } else {
-          const { name, nickname, password, divider, email } = results[0];
+          const { id, account, name, nickname, password, divider, email } = results[0];
 
           // 3. 비밀번호가 일치하는 경우 session 정보 설정
           bcrypt.compare(passwordOriginal, password, (error, result) => {
@@ -73,6 +72,7 @@ router.post("/login", (req, res) => {
             } else {
               if (result) {
                 const user = {
+                  id,
                   account,
                   name,
                   nickname,

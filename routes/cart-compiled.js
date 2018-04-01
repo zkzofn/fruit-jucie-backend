@@ -8,15 +8,21 @@ var _DBconfig = require('./DBconfig');
 
 var _queryConductor = require('./queryConductor');
 
+var _auth = require('./auth');
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var router = _express2.default.Router();
 
 router.get("/", function (req, res) {
+  var sessionKey = req.headers.authorization;
+  var sessionUser = (0, _auth.getAuthUser)(sessionKey);
+
+  // select * 로 검색한 애들 전부다 필요한 것들만 select 걸러줘야 해
   _DBconfig.pool.getConnection(function (err, connection) {
     if (err) throw err;
-    var userId = req.query.userId;
 
+    var userId = sessionUser.id;
 
     new Promise(function (resolve, reject) {
       var query = 'SELECT * \n           FROM cart_detail\n          WHERE user_id = ' + userId + '\n            AND status = 0';
@@ -27,7 +33,7 @@ router.get("/", function (req, res) {
     }).then(function (_ref) {
       var cartProducts = _ref.cartProducts;
 
-      var query = 'SELECT id, product_id, product_option_id\n           FROM cart_detail\n          WHERE user_id = ' + userId + '\n            AND status = 0\n          GROUP BY product_id';
+      var query = 'SELECT product_id\n           FROM cart_detail\n          WHERE user_id = ' + userId + '\n            AND status = 0\n          GROUP BY product_id';
 
       return (0, _queryConductor.queryConductor)(connection, query).then(function (distinctCartProducts) {
         return { cartProducts: cartProducts, distinctCartProducts: distinctCartProducts };

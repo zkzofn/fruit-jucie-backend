@@ -46,7 +46,6 @@ var router = _express2.default.Router();
  * @return null
  */
 router.post("/login", function (req, res) {
-  var session = req.session;
   var account = req.body.account;
 
   var redisClient = _redis2.default.createClient();
@@ -64,7 +63,7 @@ router.post("/login", function (req, res) {
       }
     }).then(function () {
       // 2. 아이디에 해당하는 비밀번호가 일치하는지 확인
-      var query = '\n      SELECT name, nickname, password, divider, email\n        FROM user\n       WHERE account = "' + account + '"';
+      var query = '\n      SELECT id, account, name, nickname, password, divider, email\n        FROM user\n       WHERE account = "' + account + '"';
 
       (0, _queryConductor.queryConductor)(connection, query).then(function (results) {
         if (results.length === 0) {
@@ -74,6 +73,8 @@ router.post("/login", function (req, res) {
           res.json({ user: null, msg: msg });
         } else {
           var _results$ = results[0],
+              id = _results$.id,
+              _account = _results$.account,
               name = _results$.name,
               nickname = _results$.nickname,
               password = _results$.password,
@@ -92,7 +93,8 @@ router.post("/login", function (req, res) {
             } else {
               if (result) {
                 var user = {
-                  account: account,
+                  id: id,
+                  account: _account,
                   name: name,
                   nickname: nickname,
                   divider: divider,

@@ -1,13 +1,19 @@
 import express from 'express';
 import { pool } from './DBconfig';
 import { queryConductor } from './queryConductor';
+import { getAuthUser } from './auth';
 
 const router = express.Router();
 
 router.get("/", (req, res) => {
+  const sessionKey = req.headers.authorization;
+  const sessionUser = getAuthUser(sessionKey);
+
+  // select * 로 검색한 애들 전부다 필요한 것들만 select 걸러줘야 해
   pool.getConnection((err, connection) => {
     if (err) throw err;
-    const { userId } = req.query;
+    
+    const userId = sessionUser.id;
 
     new Promise((resolve, reject) => {
       const query =
@@ -22,7 +28,7 @@ router.get("/", (req, res) => {
         })
     }).then(({cartProducts}) => {
       const query =
-        `SELECT id, product_id, product_option_id
+        `SELECT product_id
            FROM cart_detail
           WHERE user_id = ${userId}
             AND status = 0
@@ -61,7 +67,7 @@ router.get("/", (req, res) => {
     }).then(({cartProducts, distinctCartProducts, products, productOptions}) => {
       return new Promise(resolve => {
 
-        const cart = distinctCartProducts.map((distinctCartProduct) => {
+        const cart = distinctCartProducts.map(distinctCartProduct => {
           distinctCartProduct["product"] = products.filter(product => {
             return product.id === distinctCartProduct.product_id;
           })[0];
