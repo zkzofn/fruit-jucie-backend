@@ -51,6 +51,8 @@ router.get("/", function (req, res, next) {
 
         (0, _queryConductor.queryConductor)(connection, query).then(function (results) {
           var orderId = results.insertId;
+
+          // order_detail 에 cart에서 구매하는거 아니더라도 정보넣어줘야해
           var query = 'INSERT INTO order_detail\n                    (order_id, product_id, product_option_id, count)\n                    SELECT ' + orderId + ', product_id, product_option_id, count\n                      FROM cart_detail\n                     WHERE user_id = ' + data.user_id + '\n                       AND status = 0';
 
           (0, _queryConductor.queryConductor)(connection, query).then(function () {
