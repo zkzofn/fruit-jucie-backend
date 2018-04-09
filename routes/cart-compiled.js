@@ -25,7 +25,7 @@ router.get("/", function (req, res) {
     var userId = sessionUser.id;
 
     new Promise(function (resolve, reject) {
-      var query = 'SELECT * \n           FROM cart_detail\n          WHERE user_id = ' + userId + '\n            AND status = 0';
+      var query = '\n      SELECT * \n        FROM cart_detail\n       WHERE user_id = ' + userId + '\n         AND status = 0';
 
       (0, _queryConductor.queryConductor)(connection, query).then(function (cartProducts) {
         resolve({ cartProducts: cartProducts });
@@ -42,7 +42,7 @@ router.get("/", function (req, res) {
       var cartProducts = _ref2.cartProducts,
           distinctCartProducts = _ref2.distinctCartProducts;
 
-      var query = 'SELECT B.* \n           FROM cart_detail A INNER JOIN product B\n             ON A.product_id = B.id\n          WHERE A.user_id = ' + userId + '\n            AND status = 0\n          GROUP BY B.id';
+      var query = '\n      SELECT B.* \n        FROM cart_detail A INNER JOIN product B\n          ON A.product_id = B.id\n       WHERE A.user_id = ' + userId + '\n         AND status = 0\n       GROUP BY B.id';
 
       return (0, _queryConductor.queryConductor)(connection, query).then(function (products) {
         return { cartProducts: cartProducts, distinctCartProducts: distinctCartProducts, products: products };
@@ -52,7 +52,7 @@ router.get("/", function (req, res) {
           distinctCartProducts = _ref3.distinctCartProducts,
           products = _ref3.products;
 
-      var query = 'SELECT B.*\n           FROM cart_detail A INNER JOIN product_option B\n             ON A.product_option_id = B.id\n          WHERE A.user_id = ' + userId + '\n            AND status = 0\n          GROUP BY B.id';
+      var query = '\n      SELECT B.*\n        FROM cart_detail A INNER JOIN product_option B\n          ON A.product_option_id = B.id\n       WHERE A.user_id = ' + userId + '\n         AND status = 0\n       GROUP BY B.id';
 
       return (0, _queryConductor.queryConductor)(connection, query).then(function (productOptions) {
         return { cartProducts: cartProducts, distinctCartProducts: distinctCartProducts, products: products, productOptions: productOptions };
@@ -64,7 +64,6 @@ router.get("/", function (req, res) {
           productOptions = _ref4.productOptions;
 
       return new Promise(function (resolve) {
-
         var cart = distinctCartProducts.map(function (distinctCartProduct) {
           distinctCartProduct["product"] = products.filter(function (product) {
             return product.id === distinctCartProduct.product_id;
@@ -104,38 +103,29 @@ router.get("/", function (req, res) {
   _DBconfig.pool.getConnection(function (err, connection) {
     if (err) throw err;
 
+    var sessionKey = req.headers.authorization;
+    var sessionUser = (0, _auth.getAuthUser)(sessionKey);
     var _req$body = req.body,
-        userId = _req$body.userId,
         product = _req$body.product,
         selectedOptions = _req$body.selectedOptions;
 
+    var productOptionIdsString = selectedOptions.join(', ');
+    var productOptionCondition = 'AND product_option_id in (' + productOptionIdsString + ')';
+    var userId = sessionUser.id;
 
-    var productOptionCondition = "AND product_option_id in (";
-
-    selectedOptions.forEach(function (selectedOption, index) {
-      productOptionCondition = '' + productOptionCondition + selectedOption.id;
-
-      if (index === selectedOptions.length - 1) {
-        productOptionCondition = productOptionCondition + ')';
-      } else {
-        productOptionCondition = productOptionCondition + ',';
-      }
-    });
-
-    var query = 'SELECT * \n         FROM cart_detail\n        WHERE user_id = ' + userId + '\n          AND product_id = ' + product.id + '\n          ' + (selectedOptions.length > 0 ? productOptionCondition : "") + '\n          AND status = 0';
+    var query = '\n    SELECT * \n      FROM cart_detail\n     WHERE user_id = ' + userId + '\n       AND product_id = ' + product.id + '\n       ' + (selectedOptions.length > 0 ? productOptionCondition : "") + '\n       AND status = 0';
 
     (0, _queryConductor.queryConductor)(connection, query).then(function (results) {
       if (selectedOptions.length === 0 && results.length === 0) {
-        var _query = 'INSERT INTO cart_detail\n                    (user_id, product_id, count, status, date)\n             VALUES (' + userId + ', ' + product.id + ', ' + product.count + ', 0, now())';
+        var _query = '\n          INSERT INTO cart_detail\n                 (user_id, product_id, count, status, date)\n          VALUES (' + userId + ', ' + product.id + ', ' + product.count + ', 0, now())';
 
         (0, _queryConductor.queryConductor)(connection, _query).then(function (insertResults) {
-
           // 이 부분은 아마 insertResults 값 없을거야 확인해보고 수정해
           res.json({ insertResults: insertResults });
           connection.release();
         });
       } else if (selectedOptions.length === 0 && results.length > 0) {
-        var _query2 = 'UPDATE cart_detail\n                SET count = count + ' + product.count + '\n              WHERE id = ' + results[0].id;
+        var _query2 = '\n          UPDATE cart_detail\n            SET count = count + ' + product.count + '\n          WHERE id = ' + results[0].id;
 
         (0, _queryConductor.queryConductor)(connection, _query2).then(function (updateResults) {
           // 이 부분은 아마 insertResults 값 없을거야 확인해보고 수정해
@@ -150,11 +140,11 @@ router.get("/", function (req, res) {
             });
 
             if (lengthChecker.length === 0) {
-              var _query3 = 'INSERT INTO cart_detail\n                          (user_id, product_id, product_option_id, count, status, date)\n                   VALUES (' + userId + ', ' + product.id + ', ' + selectedOptions[i].id + ', ' + selectedOptions[i].count + ', 0, now())';
+              var _query3 = '\n                INSERT INTO cart_detail\n                       (user_id, product_id, product_option_id, count, status, date)\n                VALUES (' + userId + ', ' + product.id + ', ' + selectedOptions[i].id + ', ' + selectedOptions[i].count + ', 0, now())';
 
               (0, _queryConductor.queryConductor)(connection, _query3);
             } else {
-              var _query4 = 'UPDATE cart_detail\n                      SET count = count + ' + selectedOptions[i].count + '\n                    WHERE id = ' + lengthChecker[0].id;
+              var _query4 = '\n                UPDATE cart_detail\n                   SET count = count + ' + selectedOptions[i].count + '\n                 WHERE id = ' + lengthChecker[0].id;
 
               (0, _queryConductor.queryConductor)(connection, _query4);
             }
@@ -180,7 +170,7 @@ router.get("/", function (req, res) {
         cartId = _req$body2.cartId,
         value = _req$body2.value;
 
-    var query = 'UPDATE cart_detail\n          SET count = count + ' + value + '\n        WHERE id = ' + cartId;
+    var query = '\n    UPDATE cart_detail\n       SET count = count + ' + value + '\n     WHERE id = ' + cartId;
 
     (0, _queryConductor.queryConductor)(connection, query).then(function () {
       res.json({});
@@ -196,7 +186,7 @@ router.get("/", function (req, res) {
 
     var cartId = req.body.cartId;
 
-    var query = 'UPDATE cart_detail\n          SET status = 2\n        WHERE id = ' + cartId;
+    var query = '\n    UPDATE cart_detail\n       SET status = 2\n     WHERE id = ' + cartId;
 
     (0, _queryConductor.queryConductor)(connection, query).then(function () {
       res.json({});

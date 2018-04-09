@@ -35,7 +35,7 @@ router.get("/check", function (req, res) {
     if (err) throw err;
 
     new Promise(function (resolve, reject) {
-      var query = 'SELECT * \n           FROM product \n          WHERE id = ' + req.query.productId;
+      var query = '\n      SELECT * \n        FROM product \n       WHERE id = ' + req.query.productId;
 
       (0, _queryConductor.queryConductor)(connection, query).then(function (results) {
         var product = results[0];
@@ -43,7 +43,7 @@ router.get("/check", function (req, res) {
         resolve(product);
       });
     }).then(function (product) {
-      var query = 'SELECT *\n           FROM product_option\n          WHERE product_id = ' + req.query.productId;
+      var query = '\n      SELECT *\n        FROM product_option\n       WHERE product_id = ' + req.query.productId;
 
       return (0, _queryConductor.queryConductor)(connection, query).then(function (results) {
         product["options"] = results;
@@ -51,7 +51,7 @@ router.get("/check", function (req, res) {
         return product;
       });
     }).then(function (product) {
-      var query = 'SELECT * \n           FROM product_detail\n          WHERE product_id = ' + req.query.productId;
+      var query = '\n      SELECT * \n        FROM product_detail\n       WHERE product_id = ' + req.query.productId;
 
       return (0, _queryConductor.queryConductor)(connection, query).then(function (results) {
         product["details"] = results;
@@ -60,7 +60,7 @@ router.get("/check", function (req, res) {
       });
     }).then(function (product) {
       // 이거 페이지 기능 넣어서 쿼리 수정해야해
-      var query = 'SELECT *\n           FROM post_script\n          WHERE product_id = ' + req.query.productId;
+      var query = '\n      SELECT *\n        FROM post_script\n       WHERE product_id = ' + req.query.productId;
 
       (0, _queryConductor.queryConductor)(connection, query).then(function (results) {
         product["post_script"] = results;
