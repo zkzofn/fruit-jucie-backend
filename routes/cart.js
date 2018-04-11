@@ -103,42 +103,100 @@ router.get("/", (req, res) => {
 
     const sessionKey = req.headers.authorization;
     const sessionUser = getAuthUser(sessionKey);
+    const userId = sessionUser.id;
+
     const { product, selectedOptions } = req.body;
     const productOptionIdsString = selectedOptions.join(', ');
     const productOptionCondition = `AND product_option_id in (${productOptionIdsString})`;
-    const userId = sessionUser.id;
+    let daysCount = 0;
+    let daysCondition = "";
+    let daysKeys = "";
+    let daysValues = "";
 
-    const query = `
-    SELECT * 
-      FROM cart_detail
-     WHERE user_id = ${userId}
-       AND product_id = ${product.id}
-       ${selectedOptions.length > 0 ? productOptionCondition : ""}
-       AND status = 0`;
+    Object.keys(product.daysCondition).forEach(day => {
+      if (product.daysCondition[day]) {
+        daysKeys += ` ${day}, `;
+        daysValues += ` true, `;
+        daysCondition += ` AND ${day} = true `;
+        daysCount++;
+      }
+    });
 
-    queryConductor(connection, query)
-      .then(results => {
+    connection.beginTransaction(err => {
+      if (err) {
+        return connection.rollback(() => {
+          throw err;
+        })
+      }
+
+      let query = `
+      SELECT id, product_option_id
+        FROM cart_detail
+       WHERE user_id = ${userId}
+         AND product_id = ${product.id}
+         ${selectedOptions.length > 0 ? productOptionCondition : ""}
+         AND status = 0
+         ${daysCount > 0 ? daysCondition : ""}
+         `;
+
+
+      queryConductor(connection, query).catch(err => {
+        if (err) {
+          return connection.rollback(() => {
+            throw err;
+          })
+        }
+      }).then(results => {
         if (selectedOptions.length === 0 && results.length === 0) {
           const query = `
           INSERT INTO cart_detail
-                 (user_id, product_id, count, status, date)
-          VALUES (${userId}, ${product.id}, ${product.count}, 0, now())`;
+                 (user_id, product_id, count, status, ${daysCount > 0 ? daysKeys : ""} date)
+          VALUES (${userId}, ${product.id}, ${product.count}, 0, ${daysCount > 0 ? daysValues : ""} now())`;
 
-          queryConductor(connection, query).then(insertResults => {
-            // 이 부분은 아마 insertResults 값 없을거야 확인해보고 수정해
-            res.json({insertResults});
-            connection.release();
+          queryConductor(connection, query).catch(err => {
+            if (err) {
+              return connection.rollback(() => {
+                throw err;
+              })
+            }
+          }).then(insertResults => {
+            connection.commit(err => {
+              if (err) {
+                return connection.rollback(() => {
+                  throw err;
+                })
+              }
+
+              // 이 부분은 아마 insertResults 값 없을거야 확인해보고 수정해
+              res.json({insertResults});
+              connection.release();
+            })
+
           })
         } else if (selectedOptions.length === 0 && results.length > 0) {
           const query = `
           UPDATE cart_detail
-            SET count = count + ${product.count}
+            SET count = count + ${product.count}, date = now()
           WHERE id = ${results[0].id}`;
 
-          queryConductor(connection, query).then(updateResults => {
-            // 이 부분은 아마 insertResults 값 없을거야 확인해보고 수정해
-            res.json({updateResults});
-            connection.release();
+          queryConductor(connection, query).catch((err) => {
+            if (err) {
+              return connection.rollback(() => {
+                throw err;
+              })
+            }
+          }).then(updateResults => {
+            connection.commit(err => {
+              if (err) {
+                return connection.rollback(() => {
+                  throw err;
+                })
+              }
+
+              // 이 부분은 아마 insertResults 값 없을거야 확인해보고 수정해
+              res.json({updateResults});
+              connection.release();
+            })
           })
         } else if (selectedOptions.length > 0) {
           new Promise(resolve => {
@@ -153,24 +211,50 @@ router.get("/", (req, res) => {
                        (user_id, product_id, product_option_id, count, status, date)
                 VALUES (${userId}, ${product.id}, ${selectedOptions[i].id}, ${selectedOptions[i].count}, 0, now())`;
 
-                queryConductor(connection, query)
+                queryConductor(connection, query).catch(err => {
+                  if (err) {
+                    return connection.rollback(() => {
+                      throw err;
+                    })
+                  }
+                }).then(() => {
+                  if (i === selectedOptions.length - 1)
+                    resolve()
+                })
               } else {
                 const query = `
                 UPDATE cart_detail
                    SET count = count + ${selectedOptions[i].count}
                  WHERE id = ${lengthChecker[0].id}`;
 
-                queryConductor(connection, query)
+                queryConductor(connection, query).catch(err => {
+                  if (err) {
+                    return connection.rollback(() => {
+                      throw err;
+                    })
+                  }
+                }).then(() => {
+                  if (i === selectedOptions.length - 1)
+                    resolve()
+                })
               }
             }
-            resolve()
           }).then(() => {
-            // 이 부분 어떻게 해야 좋을지 좀 생각해봐봐
-            res.json({result: "success"});
-            connection.release();
-          });
+            connection.commit(err => {
+              if (err) {
+                return connection.rollback(() => {
+                  throw err;
+                })
+              }
+
+              // 이 부분 어떻게 해야 좋을지 좀 생각해봐봐
+              res.json({result: "success"});
+              connection.release();
+            })
+          })
         }
       })
+    });
   })
 }).patch("/", (req, res) => {
   pool.getConnection((err, connection) => {

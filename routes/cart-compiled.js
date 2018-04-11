@@ -105,61 +105,140 @@ router.get("/", function (req, res) {
 
     var sessionKey = req.headers.authorization;
     var sessionUser = (0, _auth.getAuthUser)(sessionKey);
+    var userId = sessionUser.id;
+
     var _req$body = req.body,
         product = _req$body.product,
         selectedOptions = _req$body.selectedOptions;
 
     var productOptionIdsString = selectedOptions.join(', ');
     var productOptionCondition = 'AND product_option_id in (' + productOptionIdsString + ')';
-    var userId = sessionUser.id;
+    var daysCount = 0;
+    var daysCondition = "";
+    var daysKeys = "";
+    var daysValues = "";
 
-    var query = '\n    SELECT * \n      FROM cart_detail\n     WHERE user_id = ' + userId + '\n       AND product_id = ' + product.id + '\n       ' + (selectedOptions.length > 0 ? productOptionCondition : "") + '\n       AND status = 0';
+    Object.keys(product.daysCondition).forEach(function (day) {
+      if (product.daysCondition[day]) {
+        daysKeys += ' ' + day + ', ';
+        daysValues += ' true, ';
+        daysCondition += ' AND ' + day + ' = true ';
+        daysCount++;
+      }
+    });
 
-    (0, _queryConductor.queryConductor)(connection, query).then(function (results) {
-      if (selectedOptions.length === 0 && results.length === 0) {
-        var _query = '\n          INSERT INTO cart_detail\n                 (user_id, product_id, count, status, date)\n          VALUES (' + userId + ', ' + product.id + ', ' + product.count + ', 0, now())';
-
-        (0, _queryConductor.queryConductor)(connection, _query).then(function (insertResults) {
-          // 이 부분은 아마 insertResults 값 없을거야 확인해보고 수정해
-          res.json({ insertResults: insertResults });
-          connection.release();
-        });
-      } else if (selectedOptions.length === 0 && results.length > 0) {
-        var _query2 = '\n          UPDATE cart_detail\n            SET count = count + ' + product.count + '\n          WHERE id = ' + results[0].id;
-
-        (0, _queryConductor.queryConductor)(connection, _query2).then(function (updateResults) {
-          // 이 부분은 아마 insertResults 값 없을거야 확인해보고 수정해
-          res.json({ updateResults: updateResults });
-          connection.release();
-        });
-      } else if (selectedOptions.length > 0) {
-        new Promise(function (resolve) {
-          var _loop = function _loop(i) {
-            var lengthChecker = results.filter(function (result) {
-              return result.product_option_id === selectedOptions[i].id;
-            });
-
-            if (lengthChecker.length === 0) {
-              var _query3 = '\n                INSERT INTO cart_detail\n                       (user_id, product_id, product_option_id, count, status, date)\n                VALUES (' + userId + ', ' + product.id + ', ' + selectedOptions[i].id + ', ' + selectedOptions[i].count + ', 0, now())';
-
-              (0, _queryConductor.queryConductor)(connection, _query3);
-            } else {
-              var _query4 = '\n                UPDATE cart_detail\n                   SET count = count + ' + selectedOptions[i].count + '\n                 WHERE id = ' + lengthChecker[0].id;
-
-              (0, _queryConductor.queryConductor)(connection, _query4);
-            }
-          };
-
-          for (var i = 0; i < selectedOptions.length; i++) {
-            _loop(i);
-          }
-          resolve();
-        }).then(function () {
-          // 이 부분 어떻게 해야 좋을지 좀 생각해봐봐
-          res.json({ result: "success" });
-          connection.release();
+    connection.beginTransaction(function (err) {
+      if (err) {
+        return connection.rollback(function () {
+          throw err;
         });
       }
+
+      var query = '\n      SELECT id, product_option_id\n        FROM cart_detail\n       WHERE user_id = ' + userId + '\n         AND product_id = ' + product.id + '\n         ' + (selectedOptions.length > 0 ? productOptionCondition : "") + '\n         AND status = 0\n         ' + (daysCount > 0 ? daysCondition : "") + '\n         ';
+
+      (0, _queryConductor.queryConductor)(connection, query).catch(function (err) {
+        if (err) {
+          return connection.rollback(function () {
+            throw err;
+          });
+        }
+      }).then(function (results) {
+        if (selectedOptions.length === 0 && results.length === 0) {
+          var _query = '\n          INSERT INTO cart_detail\n                 (user_id, product_id, count, status, ' + (daysCount > 0 ? daysKeys : "") + ' date)\n          VALUES (' + userId + ', ' + product.id + ', ' + product.count + ', 0, ' + (daysCount > 0 ? daysValues : "") + ' now())';
+
+          (0, _queryConductor.queryConductor)(connection, _query).catch(function (err) {
+            if (err) {
+              return connection.rollback(function () {
+                throw err;
+              });
+            }
+          }).then(function (insertResults) {
+            connection.commit(function (err) {
+              if (err) {
+                return connection.rollback(function () {
+                  throw err;
+                });
+              }
+
+              // 이 부분은 아마 insertResults 값 없을거야 확인해보고 수정해
+              res.json({ insertResults: insertResults });
+              connection.release();
+            });
+          });
+        } else if (selectedOptions.length === 0 && results.length > 0) {
+          var _query2 = '\n          UPDATE cart_detail\n            SET count = count + ' + product.count + ', date = now()\n          WHERE id = ' + results[0].id;
+
+          (0, _queryConductor.queryConductor)(connection, _query2).catch(function (err) {
+            if (err) {
+              return connection.rollback(function () {
+                throw err;
+              });
+            }
+          }).then(function (updateResults) {
+            connection.commit(function (err) {
+              if (err) {
+                return connection.rollback(function () {
+                  throw err;
+                });
+              }
+
+              // 이 부분은 아마 insertResults 값 없을거야 확인해보고 수정해
+              res.json({ updateResults: updateResults });
+              connection.release();
+            });
+          });
+        } else if (selectedOptions.length > 0) {
+          new Promise(function (resolve) {
+            var _loop = function _loop(i) {
+              var lengthChecker = results.filter(function (result) {
+                return result.product_option_id === selectedOptions[i].id;
+              });
+
+              if (lengthChecker.length === 0) {
+                var _query3 = '\n                INSERT INTO cart_detail\n                       (user_id, product_id, product_option_id, count, status, date)\n                VALUES (' + userId + ', ' + product.id + ', ' + selectedOptions[i].id + ', ' + selectedOptions[i].count + ', 0, now())';
+
+                (0, _queryConductor.queryConductor)(connection, _query3).catch(function (err) {
+                  if (err) {
+                    return connection.rollback(function () {
+                      throw err;
+                    });
+                  }
+                }).then(function () {
+                  if (i === selectedOptions.length - 1) resolve();
+                });
+              } else {
+                var _query4 = '\n                UPDATE cart_detail\n                   SET count = count + ' + selectedOptions[i].count + '\n                 WHERE id = ' + lengthChecker[0].id;
+
+                (0, _queryConductor.queryConductor)(connection, _query4).catch(function (err) {
+                  if (err) {
+                    return connection.rollback(function () {
+                      throw err;
+                    });
+                  }
+                }).then(function () {
+                  if (i === selectedOptions.length - 1) resolve();
+                });
+              }
+            };
+
+            for (var i = 0; i < selectedOptions.length; i++) {
+              _loop(i);
+            }
+          }).then(function () {
+            connection.commit(function (err) {
+              if (err) {
+                return connection.rollback(function () {
+                  throw err;
+                });
+              }
+
+              // 이 부분 어떻게 해야 좋을지 좀 생각해봐봐
+              res.json({ result: "success" });
+              connection.release();
+            });
+          });
+        }
+      });
     });
   });
 }).patch("/", function (req, res) {
