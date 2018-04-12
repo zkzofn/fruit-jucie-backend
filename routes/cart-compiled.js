@@ -252,10 +252,12 @@ router.get("/", function (req, res) {
     var query = '\n    UPDATE cart_detail\n       SET count = count + ' + value + '\n     WHERE id = ' + cartId;
 
     (0, _queryConductor.queryConductor)(connection, query).then(function () {
+      console.log("success");
       res.json({});
       connection.release();
     }).catch(function (err) {
-      res.json({ err: err });
+      console.log("fail");
+      res.status(500).json({ err: err });
       connection.release();
     });
   });

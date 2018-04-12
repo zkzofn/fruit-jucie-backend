@@ -267,10 +267,12 @@ router.get("/", (req, res) => {
      WHERE id = ${cartId}`;
 
     queryConductor(connection, query).then(() => {
+      console.log("success");
       res.json({});
       connection.release();
     }).catch(err => {
-      res.json({err});
+      console.log("fail");
+      res.status(500).json({err});
       connection.release();
     })
   });
