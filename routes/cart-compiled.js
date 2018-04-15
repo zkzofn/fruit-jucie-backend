@@ -69,9 +69,25 @@ router.get("/", function (req, res) {
             return product.id === distinctCartProduct.product_id;
           })[0];
 
-          distinctCartProduct["product"]["count"] = cartProducts.filter(function (cartProduct) {
+          var targetProduct = cartProducts.filter(function (cartProduct) {
             return distinctCartProduct.product_id === cartProduct.product_id;
-          })[0].count;
+          })[0];
+
+          var count = targetProduct.count,
+              days = targetProduct.days,
+              mon = targetProduct.mon,
+              tue = targetProduct.tue,
+              wed = targetProduct.wed,
+              thur = targetProduct.thur,
+              fri = targetProduct.fri;
+
+
+          distinctCartProduct["product"]["cartId"] = targetProduct.id;
+          distinctCartProduct["product"]["count"] = count;
+          distinctCartProduct["product"]["days"] = days;
+          distinctCartProduct["product"]["daysCondition"] = {
+            mon: mon, tue: tue, wed: wed, thur: thur, fri: fri
+          };
 
           distinctCartProduct["options"] = cartProducts.filter(function (cartProduct) {
             return distinctCartProduct.product_id === cartProduct.product_id && cartProduct.product_option_id !== null;
@@ -250,6 +266,8 @@ router.get("/", function (req, res) {
         value = _req$body2.value;
 
     var query = '\n    UPDATE cart_detail\n       SET count = count + ' + value + '\n     WHERE id = ' + cartId;
+
+    console.log(query);
 
     (0, _queryConductor.queryConductor)(connection, query).then(function () {
       console.log("success");

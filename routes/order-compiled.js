@@ -47,23 +47,38 @@ router.get("/", function (req, res, next) {
         orderKeyString += "date";
         orderValueString += "now()";
 
-        var query = 'INSERT INTO `order`\n                  (' + orderKeyString + ')\n           VALUES (' + orderValueString + ')';
+        var query = '\n        INSERT INTO `order`\n               (' + orderKeyString + ')\n        VALUES (' + orderValueString + ')';
 
         (0, _queryConductor.queryConductor)(connection, query).then(function (results) {
           var orderId = results.insertId;
 
           // order_detail 에 cart에서 구매하는거 아니더라도 정보넣어줘야해
+          var orderDetailValues = data.items.map(function (item) {
+            var product = item.product,
+                options = item.options;
+
+
+            if (options.length === 0) {
+              return '(\n              ' + orderId + ',\n              ' + product.id + ',\n              NULL,\n              ' + product.count + ',\n              ' + product.days + ',\n              ' + product.daysCondition.mon + ',\n              ' + product.daysCondition.tue + ',\n              ' + product.daysCondition.wed + ',\n              ' + product.daysCondition.thur + ',\n              ' + product.daysCondition.fri + '\n            )';
+            } else {
+              return options.map(function (option) {
+                return '(\n              ' + orderId + ',\n              ' + product.id + ',\n              ' + option.id + ',\n              ' + option.count + ',\n              ' + product.days + ',\n              ' + product.daysCondition.mon + ',\n              ' + product.daysCondition.tue + ',\n              ' + product.daysCondition.wed + ',\n              ' + product.daysCondition.thur + ',\n              ' + product.daysCondition.fri + '\n            )';
+              }).join(", ");
+            }
+          }).join(", ");
 
           // cart_detail에서 가져와서 넣는게 아니라 그냥 넣어줘야해
-          var query = '\n          INSERT INTO order_detail\n                 (order_id, product_id, product_option_id, count)\n          SELECT ' + orderId + ', product_id, product_option_id, count\n            FROM cart_detail\n           WHERE user_id = ' + data.user_id + '\n             AND status = 0';
+          var query = '\n          INSERT INTO order_detail\n                 (order_id, product_id, product_option_id, count, days, mon, tue, wed, thur, fri)\n          VALUES ' + orderDetailValues;
+
+          console.log(query);
 
           (0, _queryConductor.queryConductor)(connection, query).then(function () {
-            var query = 'UPDATE cart_detail\n                    SET status = 1\n                  WHERE user_id = ' + data.user_id + '\n                    AND status = 0';
+            var query = '\n            UPDATE cart_detail\n               SET status = 1\n             WHERE user_id = ' + data.user_id + '\n               AND status = 0';
 
             (0, _queryConductor.queryConductor)(connection, query).then(function () {
               connection.commit(function (err) {
                 if (err) {
-                  console.log("error 4");
+                  console.log("Error ccurs while COMMIT in postOrder");
                   connection.rollback(function () {
                     connection.release();
                     throw err;

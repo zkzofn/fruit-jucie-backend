@@ -67,9 +67,18 @@ router.get("/", (req, res) => {
             return product.id === distinctCartProduct.product_id;
           })[0];
 
-          distinctCartProduct["product"]["count"] = cartProducts.filter(cartProduct => {
+          const targetProduct = cartProducts.filter(cartProduct => {
             return distinctCartProduct.product_id === cartProduct.product_id;
-          })[0].count;
+          })[0];
+
+          const { count, days, mon, tue, wed, thur, fri } = targetProduct;
+
+          distinctCartProduct["product"]["cartId"] = targetProduct.id;
+          distinctCartProduct["product"]["count"] = count;
+          distinctCartProduct["product"]["days"] = days;
+          distinctCartProduct["product"]["daysCondition"] = {
+            mon, tue, wed, thur, fri
+          };
 
           distinctCartProduct["options"] = cartProducts.filter(cartProduct => {
             return distinctCartProduct.product_id === cartProduct.product_id && cartProduct.product_option_id !== null;
@@ -265,6 +274,8 @@ router.get("/", (req, res) => {
     UPDATE cart_detail
        SET count = count + ${value}
      WHERE id = ${cartId}`;
+
+    console.log(query);
 
     queryConductor(connection, query).then(() => {
       console.log("success");
