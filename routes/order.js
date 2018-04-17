@@ -17,142 +17,129 @@ router.get("/", (req, res, next) => {
       })
   })
 }).post("/", (req, res) => {
-  try {
-    pool.getConnection((err, connection) => {
-      if (err) throw err;
+  const { orderInfo, fromCart, items } = req.body;
+  const orderKeys = Object.keys(orderInfo);
 
-      const data = req.body;
-      const orderKeys = Object.keys(data).filter(key => {
-        return key !== "items"
-      });
-      const { fromCart } = data;
+  pool.getConnection((error, connection) => {
+    if (error) {
+      const msg = "Error occurs while pool.getConnection in # POST /order";
+      console.log(error);
+      console.log(msg);
+      connection.release();
+      res.status(500).json({error, msg});
+    } else {
+      connection.beginTransaction(async error => {
+        if (error) {
+          const msg = "Error occurs while beginTransaction in # POST /order";
+          console.log(error);
+          console.log(msg);
+          connection.release();
+          res.status(500).json({error,msg});
+        } else {
+          await new Promise((resolve, reject) => {
+            let orderKeyString = "";
+            let orderValueString = "";
 
-      connection.beginTransaction(err => {
-        if (err) throw err;
+            orderKeys.forEach((key) => {
+              orderKeyString += key + ", ";
+              orderValueString += `"${orderInfo[key]}", `;
+            });
 
-        let orderKeyString = "";
-        let orderValueString = "";
+            orderKeyString += "date";
+            orderValueString += "now()";
 
-        orderKeys.forEach((key) => {
-          orderKeyString += key + ", ";
-          orderValueString += `"${data[key]}", `;
-        });
+            const query = `
+            INSERT INTO \`order\`
+                   (${orderKeyString})
+            VALUES (${orderValueString})`;
 
-        orderKeyString += "date";
-        orderValueString += "now()";
+            queryConductor(connection, query).then(results => {
+              resolve(results);
+            }).catch(error => {
+              const msg = "Error occurs while INSERT INTO order information in # POST /order";
+              reject({error, msg});
+            });
+          }).then(results => {
+            const orderId = results.insertId;
+            const orderDetailValues = items.map(item => {
+              const {product, options} = item;
 
-        const query = `
-        INSERT INTO \`order\`
-               (${orderKeyString})
-        VALUES (${orderValueString})`;
-
-
-
-        queryConductor(connection, query).then(results => {
-          const orderId = results.insertId;
-
-          const orderDetailValues = data.items.map(item => {
-            const { product, options } = item;
-
-            if (options.length === 0) {
-              return `(
-              ${orderId},
-              ${product.id},
-              NULL,
-              ${product.count},
-              ${product.days},
-              ${product.daysCondition.mon},
-              ${product.daysCondition.tue},
-              ${product.daysCondition.wed},
-              ${product.daysCondition.thur},
-              ${product.daysCondition.fri}
-            )`
-            } else {
-              return options.map(option => {
+              if (options.length === 0) {
                 return `(
-              ${orderId},
-              ${product.id},
-              ${option.id},
-              ${option.count},
-              ${product.days},
-              ${product.daysCondition.mon},
-              ${product.daysCondition.tue},
-              ${product.daysCondition.wed},
-              ${product.daysCondition.thur},
-              ${product.daysCondition.fri}
-            )`;
-              }).join(", ");
-            }
-          }).join(", ");
+                  ${orderId},
+                  ${product.id},
+                  NULL,
+                  ${product.count},
+                  ${product.days},
+                  ${product.daysCondition.mon},
+                  ${product.daysCondition.tue},
+                  ${product.daysCondition.wed},
+                  ${product.daysCondition.thur},
+                  ${product.daysCondition.fri}
+                )`
+              } else {
+                return options.map(option => {
+                  return `(
+                    ${orderId},
+                    ${product.id},
+                    ${option.id},
+                    ${option.count},
+                    ${product.days},
+                    ${product.daysCondition.mon},
+                    ${product.daysCondition.tue},
+                    ${product.daysCondition.wed},
+                    ${product.daysCondition.thur},
+                    ${product.daysCondition.fri}
+                  )`;
+                }).join(", ");
+              }
+            }).join(", ");
 
-          const query = `
-          INSERT INTO order_detail
-                 (order_id, product_id, product_option_id, count, days, mon, tue, wed, thur, fri)
-          VALUES ${orderDetailValues}`;
+            const query = `
+            INSERT INTO order_detail
+                   (order_id, product_id, product_option_id, count, days, mon, tue, wed, thur, fri)
+            VALUES ${orderDetailValues}`;
 
-
-          queryConductor(connection, query).then(() => {
+            return queryConductor(connection, query).catch(error => {
+              const msg = "Error occurs while INSERT INTO order_detail information in # POST /order";
+              throw {error, msg};
+            })
+          }).then(() => {
             if (fromCart) {
               const query = `
-             UPDATE cart_detail
-                SET status = 1
-              WHERE user_id = ${data.user_id}
-                AND status = 0`;
+              UPDATE cart_detail
+                 SET status = 1
+               WHERE user_id = ${orderInfo.user_id}
+                 AND status = 0`;
 
-              queryConductor(connection, query).then(() => {
-                connection.commit(err => {
-                  if (err) {
-                    console.log("Error occurs while COMMIT in postOrder");
-                    connection.rollback(() => {
-                      connection.release();
-                      throw err;
-                    })
-                  }
-                  console.log(`user id = ${data.user_id} postOrder success`);
-                  connection.release();
-                  res.end();
-                })
-              }, err => {
-                console.log("Error occurs while UPDATE cart_detail information in postOrder.");
-                connection.rollback(() => {
-                  connection.release();
-                  throw err;
-                })
-              })
-            } else {
-              connection.commit(err => {
-                if (err) {
-                  console.log("Error occurs while COMMIT in postOrder");
-                  connection.rollback(() => {
-                    connection.release();
-                    throw err;
-                  })
-                }
-                console.log(`user id = ${data.user_id} postOrder success`);
+              return queryConductor(connection, query).catch(error => {
+                const msg = "Error occurs while UPDATE cart_detail information in # POST /order";
+                throw {error, msg};
+              });
+            }
+          }).then(() => {
+            connection.commit(error => {
+              if (error) {
+                const msg = "Error occurs while COMMIT in # POST /order";
+                connection.release();
+                res.status(500).json({error, msg});
+              } else {
                 connection.release();
                 res.end();
-              })
-            }
-          }, err => {
-            console.log("Error occurs while INSERT INTO order_detail information in postOrder.");
-            connection.rollback(() => {
-              connection.release();
-              throw err
+              }
             })
-          })
-        }, err => {
-          console.log("Error occurs while INSERT INTO order information in postOrder.");
-          connection.rollback(() => {
-            connection.release();
-            throw err
-          })
-        })
+          }).catch(({error, msg}) => {
+            connection.rollback(() => {
+              console.log(error);
+              console.log(msg);
+              connection.release();
+              res.status(500).json({error, msg});
+            });
+          });
+        }
       })
-    })
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({error});
-  }
+    }
+  })
 });
 
 module.exports = router;
