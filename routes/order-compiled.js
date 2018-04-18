@@ -8,23 +8,82 @@ var _DBconfig = require('./DBconfig');
 
 var _queryConductor = require('./queryConductor');
 
+var _auth = require('./auth');
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
 
 var router = _express2.default.Router();
 
-router.get("/", function (req, res, next) {
-  _DBconfig.pool.getConnection(function (err, connection) {
-    if (err) throw err;
+router.get("/user", function (req, res, next) {
+  var sessionKey = req.headers.authorization;
+  var sessionUser = (0, _auth.getAuthUser)(sessionKey);
+  var userId = sessionUser.id;
+  var endDate = req.query.endDate ? req.query.endDate : new Date();
+  var startDate = req.query.startDate ? req.query.startDate : new Date();
+  startDate.setMonth(startDate.getMonth() - 3);
 
-    var query = '';
+  startDate = startDate.toISOString().slice(0, 10);
+  endDate = endDate.toISOString().slice(0, 10);
 
-    (0, _queryConductor.queryConductor)(connection, query).then(function (results) {
-      res.json({ results: results });
-      connection.release();
-    });
-  });
+  _DBconfig.pool.getConnection(function () {
+    var _ref = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee(error, connection) {
+      var msg;
+      return regeneratorRuntime.wrap(function _callee$(_context) {
+        while (1) {
+          switch (_context.prev = _context.next) {
+            case 0:
+              if (!error) {
+                _context.next = 8;
+                break;
+              }
+
+              msg = "Error occurs while pool.getConnection in # GET /order";
+
+              console.log(error);
+              console.log(msg);
+              connection.release();
+              res.status(500).json({ error: error, msg: msg });
+              _context.next = 10;
+              break;
+
+            case 8:
+              _context.next = 10;
+              return new Promise(function (resolve, reject) {
+                var query = '\n        SELECT A.id as order_id, A.date, A.payment_type, A.total_price, B.product_id, B.product_option_id, B.count, B.days, B.mon, B.tue, B.wed, B.thur, B.fri\n          FROM `order` A inner join order_detail B\n            ON A.id = B.order_id\n         WHERE A.user_id = ' + userId + '\n           AND A.date > "' + startDate + '"\n           AND A.date < "' + endDate + '"';
+
+                (0, _queryConductor.queryConductor)(connection, query).then(function (results) {
+                  resolve(results);
+                }).catch(function (error) {
+                  var msg = "Error occurs while SELECT order info in # GET /order/user";
+                  reject({ error: error, msg: msg });
+                });
+              }).then(function (results) {
+                connection.release();
+                res.json({ results: results });
+              }).catch(function (_ref2) {
+                var error = _ref2.error,
+                    msg = _ref2.msg;
+
+                console.log(error);
+                console.log(msg);
+                connection.release();
+                res.status(500).json({ error: error, msg: msg });
+              });
+
+            case 10:
+            case 'end':
+              return _context.stop();
+          }
+        }
+      }, _callee, undefined);
+    }));
+
+    return function (_x, _x2) {
+      return _ref.apply(this, arguments);
+    };
+  }());
 }).post("/", function (req, res) {
   var _req$body = req.body,
       orderInfo = _req$body.orderInfo,
@@ -42,15 +101,15 @@ router.get("/", function (req, res, next) {
       res.status(500).json({ error: error, msg: msg });
     } else {
       connection.beginTransaction(function () {
-        var _ref = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee(error) {
+        var _ref3 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee2(error) {
           var _msg;
 
-          return regeneratorRuntime.wrap(function _callee$(_context) {
+          return regeneratorRuntime.wrap(function _callee2$(_context2) {
             while (1) {
-              switch (_context.prev = _context.next) {
+              switch (_context2.prev = _context2.next) {
                 case 0:
                   if (!error) {
-                    _context.next = 8;
+                    _context2.next = 8;
                     break;
                   }
 
@@ -60,11 +119,11 @@ router.get("/", function (req, res, next) {
                   console.log(_msg);
                   connection.release();
                   res.status(500).json({ error: error, msg: _msg });
-                  _context.next = 10;
+                  _context2.next = 10;
                   break;
 
                 case 8:
-                  _context.next = 10;
+                  _context2.next = 10;
                   return new Promise(function (resolve, reject) {
                     var orderKeyString = "";
                     var orderValueString = "";
@@ -127,9 +186,9 @@ router.get("/", function (req, res, next) {
                         res.end();
                       }
                     });
-                  }).catch(function (_ref2) {
-                    var error = _ref2.error,
-                        msg = _ref2.msg;
+                  }).catch(function (_ref4) {
+                    var error = _ref4.error,
+                        msg = _ref4.msg;
 
                     connection.rollback(function () {
                       console.log(error);
@@ -141,14 +200,14 @@ router.get("/", function (req, res, next) {
 
                 case 10:
                 case 'end':
-                  return _context.stop();
+                  return _context2.stop();
               }
             }
-          }, _callee, undefined);
+          }, _callee2, undefined);
         }));
 
-        return function (_x) {
-          return _ref.apply(this, arguments);
+        return function (_x3) {
+          return _ref3.apply(this, arguments);
         };
       }());
     }
