@@ -10,6 +10,10 @@ var _queryConductor = require('./queryConductor');
 
 var _auth = require('./auth');
 
+var _lodash = require('lodash');
+
+var _lodash2 = _interopRequireDefault(_lodash);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
@@ -51,7 +55,7 @@ router.get("/user", function (req, res, next) {
             case 8:
               _context.next = 10;
               return new Promise(function (resolve, reject) {
-                var query = '\n        SELECT A.id as order_id, A.date, A.payment_type, A.total_price, B.product_id, B.product_option_id, B.count, B.days, B.mon, B.tue, B.wed, B.thur, B.fri\n          FROM `order` A inner join order_detail B\n            ON A.id = B.order_id\n         WHERE A.user_id = ' + userId + '\n           AND A.date > "' + startDate + '"\n           AND A.date < "' + endDate + '"';
+                var query = '\n        SELECT A.id as order_id, A.date, A.status, A.payment_type, A.total_price, B.product_id, B.product_option_id, B.count, B.days, B.mon, B.tue, B.wed, B.thur, B.fri, C.image_path, C.name AS product_name, D.description\n          FROM `order` A INNER JOIN order_detail B\n            ON A.id = B.order_id\n         INNER JOIN product C\n            ON B.product_id = C.id\n          LEFT JOIN product_option D\n            ON B.product_option_id = D.id\n         WHERE A.user_id = ' + userId + '\n           AND A.date > "' + startDate + '"\n           AND A.date < "' + endDate + '"';
 
                 (0, _queryConductor.queryConductor)(connection, query).then(function (results) {
                   resolve(results);
@@ -59,6 +63,14 @@ router.get("/user", function (req, res, next) {
                   var msg = "Error occurs while SELECT order info in # GET /order/user";
                   reject({ error: error, msg: msg });
                 });
+              }).then(function (results) {
+                var orders = _lodash2.default.groupBy(results, "order_id");
+
+                for (var orderId in orders) {
+                  orders[orderId] = _lodash2.default.groupBy(orders[orderId], "product_id");
+                }
+
+                return orders;
               }).then(function (results) {
                 connection.release();
                 res.json({ results: results });

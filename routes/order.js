@@ -2,6 +2,7 @@ import express from 'express';
 import { pool } from './DBconfig';
 import { queryConductor } from './queryConductor';
 import { getAuthUser } from './auth';
+import _ from 'lodash';
 
 const router = express.Router();
 
@@ -26,9 +27,13 @@ router.get("/user", (req, res, next) => {
     } else {
       await new Promise((resolve, reject) => {
         const query = `
-        SELECT A.id as order_id, A.date, A.payment_type, A.total_price, B.product_id, B.product_option_id, B.count, B.days, B.mon, B.tue, B.wed, B.thur, B.fri
-          FROM \`order\` A inner join order_detail B
+        SELECT A.id as order_id, A.date, A.status, A.payment_type, A.total_price, B.product_id, B.product_option_id, B.count, B.days, B.mon, B.tue, B.wed, B.thur, B.fri, C.image_path, C.name AS product_name, D.description
+          FROM \`order\` A INNER JOIN order_detail B
             ON A.id = B.order_id
+         INNER JOIN product C
+            ON B.product_id = C.id
+          LEFT JOIN product_option D
+            ON B.product_option_id = D.id
          WHERE A.user_id = ${userId}
            AND A.date > "${startDate}"
            AND A.date < "${endDate}"`;
@@ -39,6 +44,14 @@ router.get("/user", (req, res, next) => {
           const msg = "Error occurs while SELECT order info in # GET /order/user";
           reject({error, msg});
         })
+      }).then((results) => {
+        let orders = _.groupBy(results, "order_id");
+
+        for (const orderId in orders) {
+          orders[orderId] = _.groupBy(orders[orderId], "product_id")
+        }
+
+        return orders;
       }).then((results) => {
         connection.release();
         res.json({results});
