@@ -13,6 +13,7 @@ router.get("/user", (req, res, next) => {
   let endDate = req.query.endDate ? req.query.endDate : new Date();
   let startDate = req.query.startDate ? req.query.startDate : new Date();
   startDate.setMonth(startDate.getMonth() - 3);
+  endDate.setDate(endDate.getDate() + 1);
 
   startDate = startDate.toISOString().slice(0, 10);
   endDate = endDate.toISOString().slice(0, 10);
@@ -35,7 +36,7 @@ router.get("/user", (req, res, next) => {
           LEFT JOIN product_option D
             ON B.product_option_id = D.id
          WHERE A.user_id = ${userId}
-           AND A.date > "${startDate}"
+           AND A.date >= "${startDate}"
            AND A.date < "${endDate}"`;
 
         queryConductor(connection, query).then((results) => {
