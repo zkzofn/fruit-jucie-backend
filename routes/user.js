@@ -258,7 +258,7 @@ router.post("/login", (req, res) => {
                     "${address2}",
                     "${email}",
                     now(),
-                    ${join_route}
+                    0
                   )`;
 
                   console.log(password);
@@ -379,7 +379,7 @@ router.post("/login", (req, res) => {
         const query = `
         SELECT id, account, name, nickname, phone, address1, address2, email, zipcode
           FROM user
-         where account = '${sessionUser.account}';
+         WHERE account = '${sessionUser.account}';
         `;
 
         queryConductor(connection, query).then(results => {
@@ -391,6 +391,81 @@ router.post("/login", (req, res) => {
       })
     }
   });
-});
+})
+/**
+ * @file /routes/users.js
+ * @brief PATCH user API
+ * @author 이장호
+ * @date 2018-05-13
+ *
+ *
+ */
+.patch('/', (req, res) => {
+  const sessionKey = req.headers.authorization;
+  const sessionUser = getAuthUser(sessionKey);
+
+  const { nickname, password, phone, zipcode, address1, address2 } = req.body;
+
+  pool.getConnection((err, connection) => {
+    if (err) {
+      const msg = "Error occurs while pool.getConnection in # PATCH /user/userId";
+
+      console.log(err);
+      console.log(msg);
+      res.json({err, msg});
+    } else {
+      new Promise((resolve, reject) => {
+        const query = `
+        UPDATE user
+           SET nickname = '${nickname}',
+               password = '${password}',
+               phone = '${phone}',
+               zipcode = '${zipcode}',
+               address1 = '${address1}',
+               address2 = '${address2}'
+         WHERE account = '${sessionUser.account}';
+        `;
+
+        queryConductor(connection, query).then(results => {
+          res.json({results});
+          connection.release();
+        })
+      })
+    }
+  })
+})
+/**
+ * @file /routes/users.js
+ * @brief GET /user/check/id/:account API 계정이 이미 존재하는지 체크하는 API
+ * @author 이장호
+ * @date 2018-05-13
+ */
+.get('/check/id', (req, res) => {
+  const { account } = req.params;
+
+  pool.getConnection((err, connection) => {
+    if (err) {
+      const msg = "Error occurs while pool.getConnection in # GET /user/check/id/:account";
+
+      console.log(err);
+      console.log(msg);
+      res.json({err, msg});
+    } else {
+      new Promise((resolve, reject) => {
+        const query = `
+        SELECT account
+          FROM user
+         WHERE account = '${account}'`;
+
+        queryConductor(connection, query).then(results => {
+          console.log(results);
+          res.json({results});
+          connection.release();
+        })
+      })
+    }
+  })
+})
+;
 
 module.exports = router;

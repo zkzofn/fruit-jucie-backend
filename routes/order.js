@@ -20,7 +20,7 @@ router.get("/user", (req, res, next) => {
 
   pool.getConnection(async (error, connection) => {
     if (error) {
-      const msg = "Error occurs while pool.getConnection in # GET /order";
+      const msg = "Error occurs while pool.getConnection in # GET /order/user";
       console.log(error);
       console.log(msg);
       connection.release();
