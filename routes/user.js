@@ -436,16 +436,16 @@ router.post("/login", (req, res) => {
 })
 /**
  * @file /routes/users.js
- * @brief GET /user/check/id/:account API 계정이 이미 존재하는지 체크하는 API
+ * @brief GET /user/check/id/?account API 계정이 이미 존재하는지 체크하는 API
  * @author 이장호
  * @date 2018-05-13
  */
 .get('/check/id', (req, res) => {
-  const { account } = req.params;
+  const { account } = req.query;
 
   pool.getConnection((err, connection) => {
     if (err) {
-      const msg = "Error occurs while pool.getConnection in # GET /user/check/id/:account";
+      const msg = "Error occurs while pool.getConnection in # GET /user/check/id/?account";
 
       console.log(err);
       console.log(msg);
@@ -458,7 +458,37 @@ router.post("/login", (req, res) => {
          WHERE account = '${account}'`;
 
         queryConductor(connection, query).then(results => {
-          console.log(results);
+          res.json({results});
+          connection.release();
+        })
+      })
+    }
+  })
+})
+/**
+ * @file /routes/users.js
+ * @brief GET /user/check/nickname/:nickname API 닉네임이 이미 존재하는지 체크하는 API
+ * @author 이장호
+ * @date 2018-05-14
+ */
+.get('/check/nickname', (req, res) => {
+  const { nickname } = req.query;
+
+  pool.getConnection((err, connection) => {
+    if (err) {
+      const msg = "Error occurs while pool.getConnection in # GET /user/check/nickname/?nickname";
+
+      console.log(err);
+      console.log(msg);
+      res.json({err, msg});
+    } else {
+      new Promise((resolve, reject) => {
+        const query = `
+        SELECT account
+          FROM user
+         WHERE nickname = '${nickname}'`;
+
+        queryConductor(connection, query).then(results => {
           res.json({results});
           connection.release();
         })

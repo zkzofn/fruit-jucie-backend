@@ -261,7 +261,7 @@ router.post("/login", function (req, res) {
                   // SHA1("test6")
                   // a66df261120b6c2311c6ef0b1bab4e583afcbcc0
 
-                  var _query = '\n                  INSERT INTO user (\n                    account,\n                    name,\n                    nickname,\n                    password,\n                    divider,\n                    phone,\n                    zipcode,\n                    address1,\n                    address2,\n                    email,\n                    enroll_date,\n                    join_route\n                  ) VALUES (\n                    "' + account + '",\n                    "' + name + '",\n                    "' + nickname + '",\n                    "' + password + '",\n                    1,\n                    "' + phone + '",\n                    "' + zipcode + '",\n                    "' + address1 + '",\n                    "' + address2 + '",\n                    "' + email + '",\n                    now(),\n                    ' + join_route + '\n                  )';
+                  var _query = '\n                  INSERT INTO user (\n                    account,\n                    name,\n                    nickname,\n                    password,\n                    divider,\n                    phone,\n                    zipcode,\n                    address1,\n                    address2,\n                    email,\n                    enroll_date,\n                    join_route\n                  ) VALUES (\n                    "' + account + '",\n                    "' + name + '",\n                    "' + nickname + '",\n                    "' + password + '",\n                    1,\n                    "' + phone + '",\n                    "' + zipcode + '",\n                    "' + address1 + '",\n                    "' + address2 + '",\n                    "' + email + '",\n                    now(),\n                    0\n                  )';
 
                   console.log(password);
 
@@ -379,12 +379,110 @@ router.post("/login", function (req, res) {
       res.json({ err: err, msg: msg });
     } else {
       new Promise(function (resolve, reject) {
-        var query = '\n        SELECT id, account, name, nickname, phone, address1, address2, email, zipcode\n          FROM user\n         where account = \'' + sessionUser.account + '\';\n        ';
+        var query = '\n        SELECT id, account, name, nickname, phone, address1, address2, email, zipcode\n          FROM user\n         WHERE account = \'' + sessionUser.account + '\';\n        ';
 
         (0, _queryConductor.queryConductor)(connection, query).then(function (results) {
           var user = results[0];
 
           res.json({ user: user });
+          connection.release();
+        });
+      });
+    }
+  });
+})
+/**
+ * @file /routes/users.js
+ * @brief PATCH user API
+ * @author 이장호
+ * @date 2018-05-13
+ *
+ *
+ */
+.patch('/', function (req, res) {
+  var sessionKey = req.headers.authorization;
+  var sessionUser = (0, _auth.getAuthUser)(sessionKey);
+
+  var _req$body2 = req.body,
+      nickname = _req$body2.nickname,
+      password = _req$body2.password,
+      phone = _req$body2.phone,
+      zipcode = _req$body2.zipcode,
+      address1 = _req$body2.address1,
+      address2 = _req$body2.address2;
+
+
+  _DBconfig.pool.getConnection(function (err, connection) {
+    if (err) {
+      var msg = "Error occurs while pool.getConnection in # PATCH /user/userId";
+
+      console.log(err);
+      console.log(msg);
+      res.json({ err: err, msg: msg });
+    } else {
+      new Promise(function (resolve, reject) {
+        var query = '\n        UPDATE user\n           SET nickname = \'' + nickname + '\',\n               password = \'' + password + '\',\n               phone = \'' + phone + '\',\n               zipcode = \'' + zipcode + '\',\n               address1 = \'' + address1 + '\',\n               address2 = \'' + address2 + '\'\n         WHERE account = \'' + sessionUser.account + '\';\n        ';
+
+        (0, _queryConductor.queryConductor)(connection, query).then(function (results) {
+          res.json({ results: results });
+          connection.release();
+        });
+      });
+    }
+  });
+})
+/**
+ * @file /routes/users.js
+ * @brief GET /user/check/id/?account API 계정이 이미 존재하는지 체크하는 API
+ * @author 이장호
+ * @date 2018-05-13
+ */
+.get('/check/id', function (req, res) {
+  var account = req.query.account;
+
+
+  _DBconfig.pool.getConnection(function (err, connection) {
+    if (err) {
+      var msg = "Error occurs while pool.getConnection in # GET /user/check/id/?account";
+
+      console.log(err);
+      console.log(msg);
+      res.json({ err: err, msg: msg });
+    } else {
+      new Promise(function (resolve, reject) {
+        var query = '\n        SELECT account\n          FROM user\n         WHERE account = \'' + account + '\'';
+
+        (0, _queryConductor.queryConductor)(connection, query).then(function (results) {
+          res.json({ results: results });
+          connection.release();
+        });
+      });
+    }
+  });
+})
+/**
+ * @file /routes/users.js
+ * @brief GET /user/check/nickname/:nickname API 닉네임이 이미 존재하는지 체크하는 API
+ * @author 이장호
+ * @date 2018-05-14
+ */
+.get('/check/nickname', function (req, res) {
+  var nickname = req.query.nickname;
+
+
+  _DBconfig.pool.getConnection(function (err, connection) {
+    if (err) {
+      var msg = "Error occurs while pool.getConnection in # GET /user/check/nickname/?nickname";
+
+      console.log(err);
+      console.log(msg);
+      res.json({ err: err, msg: msg });
+    } else {
+      new Promise(function (resolve, reject) {
+        var query = '\n        SELECT account\n          FROM user\n         WHERE nickname = \'' + nickname + '\'';
+
+        (0, _queryConductor.queryConductor)(connection, query).then(function (results) {
+          res.json({ results: results });
           connection.release();
         });
       });
