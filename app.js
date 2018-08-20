@@ -15,8 +15,10 @@ var cart = require('./routes/cart');
 var address = require('./routes/address');
 var order = require('./routes/order');
 var myPage = require('./routes/myPage');
+var upload = require('./routes/upload');
 
 var app = express();
+
 
 app.disable('x-powered-by');
 
@@ -58,8 +60,13 @@ app.use(session({
 // uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
 app.use(logger('dev'));
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json({limit: '50mb'}));
+app.use(bodyParser.urlencoded({
+  limit: '50mb',
+  extended: true,
+  parameterLimit: 50000
+}));
+
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -72,6 +79,7 @@ app.use('/cart', cart);
 app.use('/address', address);
 app.use('/order',  order);
 app.use('/mypage', myPage);
+app.use('/upload', upload);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
