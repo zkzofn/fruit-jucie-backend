@@ -27,6 +27,7 @@ router.get("/user", function (req, res, next) {
   var endDate = req.query.endDate ? req.query.endDate : new Date();
   var startDate = req.query.startDate ? req.query.startDate : new Date();
   startDate.setMonth(startDate.getMonth() - 3);
+  endDate.setDate(endDate.getDate() + 1);
 
   startDate = startDate.toISOString().slice(0, 10);
   endDate = endDate.toISOString().slice(0, 10);
@@ -43,7 +44,7 @@ router.get("/user", function (req, res, next) {
                 break;
               }
 
-              msg = "Error occurs while pool.getConnection in # GET /order";
+              msg = "Error occurs while pool.getConnection in # GET /order/user";
 
               console.log(error);
               console.log(msg);
@@ -55,7 +56,7 @@ router.get("/user", function (req, res, next) {
             case 8:
               _context.next = 10;
               return new Promise(function (resolve, reject) {
-                var query = '\n        SELECT A.id as order_id, A.date, A.status, A.payment_type, A.total_price, B.product_id, B.product_option_id, B.count, B.days, B.mon, B.tue, B.wed, B.thur, B.fri, C.image_path, C.name AS product_name, D.description\n          FROM `order` A INNER JOIN order_detail B\n            ON A.id = B.order_id\n         INNER JOIN product C\n            ON B.product_id = C.id\n          LEFT JOIN product_option D\n            ON B.product_option_id = D.id\n         WHERE A.user_id = ' + userId + '\n           AND A.date > "' + startDate + '"\n           AND A.date < "' + endDate + '"';
+                var query = '\n        SELECT A.id as order_id, A.date, A.status, A.payment_type, A.total_price, B.product_id, B.product_option_id, B.count, B.days, B.mon, B.tue, B.wed, B.thur, B.fri, C.image_path, C.name AS product_name, D.description\n          FROM `order` A INNER JOIN order_detail B\n            ON A.id = B.order_id\n         INNER JOIN product C\n            ON B.product_id = C.id\n          LEFT JOIN product_option D\n            ON B.product_option_id = D.id\n         WHERE A.user_id = ' + userId + '\n           AND A.date >= "' + startDate + '"\n           AND A.date < "' + endDate + '"';
 
                 (0, _queryConductor.queryConductor)(connection, query).then(function (results) {
                   resolve(results);
