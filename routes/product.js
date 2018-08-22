@@ -26,8 +26,9 @@ router.get("/check", (req, res) => {
       })
     }
   })
-})
-.get("/", (req, res, next) => {
+});
+
+router.get("/", (req, res, next) => {
   pool.getConnection((err, connection) => {
     if (err) throw err;
 
@@ -78,6 +79,33 @@ router.get("/check", (req, res) => {
         connection.release();
       })
     });
+  })
+});
+
+router.patch("/", (req, res) => {
+  const { productId, category, description, name, days } = req.body;
+
+  pool.getConnection((err, connection) => {
+    if (err) {
+      const msg = "Error occurs while pool.getConnection # GET /product/check";
+
+      console.log(err);
+      console.log(msg);
+      res.json({err, msg});
+    } else {
+      const query = `
+      UPDATE product
+         SET name = '${name}',
+             category_name_en = '${category}',
+             days = ${days},
+             description = '${description}'
+       WHERE id = ${productId}`;
+
+      queryConductor(connection, query).then(results => {
+        connection.release();
+        res.json({results});
+      })
+    }
   })
 });
 
