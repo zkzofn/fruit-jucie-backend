@@ -83,7 +83,7 @@ router.get("/", (req, res, next) => {
 });
 
 router.patch("/", (req, res) => {
-  const { productId, category, description, name, days } = req.body;
+  const { productId, category, description, name, days, imagePath, price } = req.body;
 
   pool.getConnection((err, connection) => {
     if (err) {
@@ -98,7 +98,10 @@ router.patch("/", (req, res) => {
          SET name = '${name}',
              category_name_en = '${category}',
              days = ${days},
-             description = '${description}'
+             description = '${description}',
+             image_path = '${imagePath}',
+             price_original = ${price},
+             price_sale = ${price}
        WHERE id = ${productId}`;
 
       queryConductor(connection, query).then(results => {
